@@ -221,6 +221,25 @@
   .champ-reset:disabled { opacity: .5; cursor: wait; }
   .champ-reset[hidden] { display: none; }
 
+  /* "Used" counter, landing page only */
+  .used {
+    position: fixed; z-index: 3;
+    right: calc(12px + env(safe-area-inset-right, 0px));
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    display: flex; align-items: center; gap: 8px;
+    background: #fff; color: var(--ink);
+    border: 3px solid var(--purple); border-radius: 999px;
+    padding: 4px 6px 4px 14px; box-shadow: 0 4px 0 rgba(0,0,0,.15);
+    font-weight: 800;
+  }
+  .used[hidden] { display: none; }
+  .used-label { font-size: 1rem; color: var(--purple); }
+  .used-count {
+    font-size: 1.1rem; background: var(--yellow); border-radius: 999px;
+    padding: 0 12px; font-variant-numeric: tabular-nums;
+  }
+  body { padding-bottom: 72px; }
+
   .confetti { position: fixed; top: -20px; width: 12px; height: 18px; z-index: 5; pointer-events: none; animation: fall linear forwards; }
   @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
 
@@ -305,6 +324,11 @@
     </div>
   </section>
 
+</div>
+
+<div class="used" id="used" aria-live="polite">
+  <span class="used-label">Used</span>
+  <span class="used-count" id="usedCount">…</span>
 </div>
 
 <div class="confirm" id="confirmQuit" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" hidden>
@@ -452,6 +476,7 @@
   function showScreen(id) {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     $(id).classList.add("active");
+    $("used").hidden = id !== "start";   // only on the landing page
   }
 
   // ---------- Random question order ----------
@@ -847,6 +872,52 @@
 
   refreshChampion();
   connectScoreBoard();
+
+  // ---------- "Used" counter ----------
+  // On the web page, everyone's visits are added up live. Each person keeps their own
+  // visit count, so visits from different people never overwrite each other.
+  // Opened as a plain file, it counts visits in this browser.
+  const USED_KEY = "ttf-used";
+  function showUsed(n) {
+    $("usedCount").textContent = Number.isFinite(n) ? n.toLocaleString() : "–";
+  }
+  function countLocalVisit() {
+    try {
+      const n = (parseInt(localStorage.getItem(USED_KEY) || "0", 10) || 0) + 1;
+      localStorage.setItem(USED_KEY, String(n));
+      return n;
+    } catch (e) { return NaN; }
+  }
+  async function startUsedCounter() {
+    if (!window.claude || typeof window.claude.use !== "function") { showUsed(countLocalVisit()); return; }
+    let db = null, user = null;
+    try { [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]); } catch (e) {}
+    if (!db) { showUsed(countLocalVisit()); return; }
+
+    // Live total: add up everyone's visit counts
+    const timer = setTimeout(() => { if ($("usedCount").textContent === "…") showUsed(NaN); }, 10000);
+    db.collection("opens").limit(1000).onSnapshot(snap => {
+      clearTimeout(timer);
+      let total = 0;
+      snap.docs.forEach(d => {
+        const c = d.data().count;
+        if (Number.isInteger(c) && c > 0) total += c;
+      });
+      showUsed(total);
+    }, () => { clearTimeout(timer); showUsed(NaN); });
+
+    // Count this visit
+    try {
+      const uid = user ? await user.id() : null;
+      if (uid) {
+        const ref = db.doc("opens/" + uid);
+        const mine = await ref.get();
+        const prev = mine.exists && Number.isInteger(mine.data().count) ? mine.data().count : 0;
+        await ref.set({ count: prev + 1 });
+      }
+    } catch (e) { /* this viewer can't add to the count; the total still shows */ }
+  }
+  startUsedCounter();
 
   function confetti() {
     for (let i = 0; i < 80; i++) {
