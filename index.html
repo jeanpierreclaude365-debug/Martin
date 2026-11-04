@@ -48,6 +48,7 @@
     box-shadow: 0 12px 0 rgba(0,0,0,.12), 0 20px 40px rgba(0,0,0,.15);
     border: 6px solid var(--purple);
     text-align: center;
+    margin-top: 26px;
   }
   h1 {
     margin: 0 0 4px; font-size: clamp(2rem, 7vw, 2.9rem); line-height: 1.1;
@@ -139,6 +140,18 @@
   .again { background: var(--purple); }
   .same { background: var(--orange); }
 
+  .mute-btn {
+    position: absolute; top: -26px; right: 18px; z-index: 2;
+    width: 54px; height: 54px; border-radius: 50%;
+    border: 5px solid var(--purple); background: var(--yellow);
+    font-size: 1.6rem; line-height: 1; cursor: pointer;
+    box-shadow: 0 5px 0 rgba(0,0,0,.2);
+    transition: transform .1s, box-shadow .1s;
+  }
+  .mute-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.2); }
+  .mute-btn:focus-visible { outline: 4px solid var(--blue); outline-offset: 3px; }
+  .mute-btn.off { background: #dfe3ea; }
+
   .confetti { position: fixed; top: -20px; width: 12px; height: 18px; z-index: 5; pointer-events: none; animation: fall linear forwards; }
   @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
 
@@ -155,6 +168,7 @@
 <body>
 
 <div class="app">
+  <button class="mute-btn" id="muteBtn" type="button" aria-label="Turn sound off">🔊</button>
 
   <!-- START SCREEN -->
   <section id="start" class="screen active">
@@ -334,29 +348,61 @@
     input.focus();
   }
 
-  // ---------- Sound effect for right answers ----------
-  // A cheerful rising "ding-ding-ding" made with the Web Audio API (no sound files needed).
+  // ---------- Sounds (made with the Web Audio API, no sound files needed) ----------
   let audioCtx = null;
-  function playCorrect() {
+  let muted = false;
+  try { muted = localStorage.getItem("ttf-muted") === "1"; } catch (e) {}
+
+  // Play a list of notes: [frequency, start offset in seconds, length in seconds]
+  function playNotes(notes, type, volume) {
+    if (muted) return;
     try {
       audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
       if (audioCtx.state === "suspended") audioCtx.resume();
       const now = audioCtx.currentTime;
-      [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => { // C5, E5, G5, C6
+      notes.forEach(([freq, offset, length]) => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.type = "triangle";
+        osc.type = type;
         osc.frequency.value = freq;
-        const start = now + i * 0.09;
+        const start = now + offset;
         gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(0.3, start + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.35);
+        gain.gain.exponentialRampToValueAtTime(volume, start + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
         osc.connect(gain).connect(audioCtx.destination);
         osc.start(start);
-        osc.stop(start + 0.4);
+        osc.stop(start + length + 0.05);
       });
-    } catch (e) { /* sound not available — carry on silently */ }
+    } catch (e) { /* sound not available, carry on silently */ }
   }
+
+  // Right answer: a cheerful rising "ding-ding-ding-ding" (C, E, G, high C)
+  function playCorrect() {
+    playNotes([[523.25, 0, 0.35], [659.25, 0.09, 0.35], [783.99, 0.18, 0.35], [1046.5, 0.27, 0.4]],
+              "triangle", 0.3);
+  }
+
+  // Wrong answer: a soft, low "boo-oop" sliding down (gentle, not scary)
+  function playWrong() {
+    playNotes([[392.0, 0, 0.3], [329.63, 0.22, 0.45]], "sine", 0.18);
+  }
+
+  function updateMuteButton() {
+    const btn = $("muteBtn");
+    btn.textContent = muted ? "🔇" : "🔊";
+    btn.setAttribute("aria-label", muted ? "Turn sound on" : "Turn sound off");
+    btn.setAttribute("aria-pressed", muted ? "true" : "false");
+    btn.title = muted ? "Sound is off" : "Sound is on";
+    btn.classList.toggle("off", muted);
+  }
+  $("muteBtn").onclick = () => {
+    muted = !muted;
+    try { localStorage.setItem("ttf-muted", muted ? "1" : "0"); } catch (e) {}
+    updateMuteButton();
+    if (!muted) playNotes([[783.99, 0, 0.25]], "triangle", 0.2);
+    if ($("quiz").classList.contains("active")) $("answer").focus();
+  };
+  updateMuteButton();
 
   function checkAnswer() {
     if (locked) return;
@@ -380,6 +426,7 @@
       setTimeout(next, 900);
     } else {
       mistakes.push({ ...q, given });
+      playWrong();
       input.classList.add("wrong");
       $("feedback").textContent = `Oops! ${q.a} × ${q.b} = ${q.answer} 💪`;
       $("feedback").className = "feedback bad";
