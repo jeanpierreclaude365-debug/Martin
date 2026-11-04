@@ -256,8 +256,8 @@
 
     <h2>Pick your mode</h2>
     <div class="modes">
-      <button class="mode-btn easy" data-mode="easy">😊 Easy<small>10 questions</small></button>
-      <button class="mode-btn hard" data-mode="hard">🔥 Hard<small>20 questions</small></button>
+      <button class="mode-btn easy" data-mode="easy">😊 Easy<small>5 questions</small></button>
+      <button class="mode-btn hard" data-mode="hard">🔥 Hard<small>10 questions</small></button>
     </div>
 
     <button class="big-btn" id="startBtn" disabled>Let's Go! 🚀</button>
@@ -323,7 +323,7 @@
   // ---------- Settings ----------
   const MIN_TABLE = 1;
   const MAX_TABLE = 12;
-  const QUESTION_COUNT = { easy: 10, hard: 20 };
+  const QUESTION_COUNT = { easy: 5, hard: 10 };
   const COLOURS = ["#ff4d6d","#ff9f1c","#f7b801","#2ec4b6","#3a86ff","#8338ec",
                    "#ff5fa2","#06d6a0","#ef476f","#118ab2","#fb5607","#9b5de5"];
   const PRAISE = ["Brilliant! 🎉","Super star! ⭐","Amazing! 🌟","You got it! 👍",
@@ -389,6 +389,15 @@
     else $("hint").textContent = `The ${chosenTable} times table, ${chosenMode} mode — ready?`;
   }
 
+  // Easy mode is always picked to begin with
+  function setMode(mode) {
+    chosenMode = mode;
+    document.querySelectorAll(".mode-btn").forEach(b =>
+      b.classList.toggle("selected", b.dataset.mode === mode));
+    updateStart();
+  }
+  setMode("easy");
+
   $("startBtn").onclick = startQuiz;
   $("sameBtn").onclick = startQuiz;
   // Quit: stop the current game and go back to the landing screen
@@ -396,6 +405,7 @@
   function quitToStart() {
     clearTimeout(nextTimer);
     locked = true;
+    setMode("easy");
     showScreen("start");
     refreshChampion();
   }
@@ -681,8 +691,8 @@
 
   function isValidEntry(s) {
     return s && typeof s.initials === "string" && /^[A-Z]{1,3}$/.test(s.initials) &&
-      Number.isInteger(s.score) && s.score >= 1 && s.score <= 20 &&
-      (s.total === 10 || s.total === 20) && Number.isInteger(s.table) &&
+      Number.isInteger(s.score) && s.score >= 1 &&
+      [5, 10, 20].includes(s.total) && s.score <= s.total && Number.isInteger(s.table) &&
       s.table >= 1 && s.table <= 12 && s.day === todayKey();
   }
 
