@@ -179,6 +179,16 @@
   .big-btn.save-btn { margin-top: 0; padding: 8px 22px; font-size: 1.3rem; background: var(--green); }
   .save-msg { min-height: 1.4em; font-weight: 800; margin-top: 6px; font-size: 1.15rem; color: var(--purple); }
 
+  .quit-btn {
+    font-family: inherit; font-size: 1.1rem; font-weight: 800; cursor: pointer;
+    color: #fff; background: var(--red); border: none; border-radius: 999px;
+    padding: 4px 14px; box-shadow: 0 4px 0 rgba(0,0,0,.2);
+    transition: transform .1s, box-shadow .1s;
+  }
+  .quit-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.2); }
+  .quit-btn:focus-visible { outline: 4px solid var(--blue); outline-offset: 3px; }
+  .results-top { display: flex; justify-content: flex-start; margin-bottom: 4px; }
+
   .confetti { position: fixed; top: -20px; width: 12px; height: 18px; z-index: 5; pointer-events: none; animation: fall linear forwards; }
   @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
 
@@ -224,6 +234,7 @@
   <!-- QUIZ SCREEN -->
   <section id="quiz" class="screen">
     <div class="top-bar">
+      <button class="quit-btn" id="quitQuizBtn" type="button">✖ Quit</button>
       <span class="pill" id="tableLabel">2 times table</span>
       <span class="pill" id="counter">1 / 10</span>
     </div>
@@ -239,6 +250,9 @@
 
   <!-- RESULTS SCREEN -->
   <section id="results" class="screen">
+    <div class="results-top">
+      <button class="quit-btn" id="quitResultsBtn" type="button">✖ Quit</button>
+    </div>
     <h1 id="resultTitle">Well done!</h1>
     <div class="stars" id="stars"></div>
     <div class="score-big" id="scoreBig"></div>
@@ -332,7 +346,17 @@
 
   $("startBtn").onclick = startQuiz;
   $("sameBtn").onclick = startQuiz;
-  $("menuBtn").onclick = () => { showScreen("start"); refreshChampion(); };
+  // Quit: stop the current game and go back to the landing screen
+  let nextTimer = null;
+  function quitToStart() {
+    clearTimeout(nextTimer);
+    locked = true;
+    showScreen("start");
+    refreshChampion();
+  }
+  $("menuBtn").onclick = quitToStart;
+  $("quitQuizBtn").onclick = quitToStart;
+  $("quitResultsBtn").onclick = quitToStart;
 
   function showScreen(id) {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -364,6 +388,7 @@
 
   // ---------- Quiz ----------
   function startQuiz() {
+    clearTimeout(nextTimer);
     questions = makeMultipliers(QUESTION_COUNT[chosenMode]).map(m => ({
       a: m, b: chosenTable, answer: m * chosenTable
     }));
@@ -466,14 +491,14 @@
       input.classList.add("right");
       $("feedback").textContent = PRAISE[Math.floor(Math.random() * PRAISE.length)];
       $("feedback").className = "feedback good";
-      setTimeout(next, 900);
+      nextTimer = setTimeout(next, 900);
     } else {
       mistakes.push({ ...q, given });
       playWrong();
       input.classList.add("wrong");
       $("feedback").textContent = `Oops! ${q.a} × ${q.b} = ${q.answer} 💪`;
       $("feedback").className = "feedback bad";
-      setTimeout(next, 2000);
+      nextTimer = setTimeout(next, 2000);
     }
   }
 
