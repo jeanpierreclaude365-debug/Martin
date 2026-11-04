@@ -189,6 +189,27 @@
   .quit-btn:focus-visible { outline: 4px solid var(--blue); outline-offset: 3px; }
   .results-top { display: flex; justify-content: flex-start; margin-bottom: 4px; }
 
+  /* "Are you sure?" quit check */
+  .confirm {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px; background: rgba(43,45,66,.55);
+  }
+  .confirm[hidden] { display: none; }
+  .confirm-card {
+    width: 100%; max-width: 360px; background: #fff; color: var(--ink);
+    border: 6px solid var(--orange); border-radius: 28px; padding: 22px 18px;
+    text-align: center; box-shadow: 0 10px 0 rgba(0,0,0,.15);
+    animation: pop .25s ease;
+  }
+  .confirm-face { font-size: 3rem; line-height: 1; }
+  .confirm-card h2 { margin: 8px 0 6px; font-size: 1.6rem; }
+  .confirm-card p { margin: 0 0 16px; font-size: 1.1rem; }
+  .confirm-btns { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  .confirm-btns .big-btn { margin-top: 0; padding: 10px 20px; font-size: 1.25rem; }
+  .big-btn.yes-quit { background: var(--red); }
+  .big-btn.keep-going { background: var(--green); }
+
   .confetti { position: fixed; top: -20px; width: 12px; height: 18px; z-index: 5; pointer-events: none; animation: fall linear forwards; }
   @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
 
@@ -274,6 +295,18 @@
 
 </div>
 
+<div class="confirm" id="confirmQuit" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" hidden>
+  <div class="confirm-card">
+    <div class="confirm-face" aria-hidden="true">🤔</div>
+    <h2 id="confirmTitle">Are you sure you want to quit?</h2>
+    <p id="confirmText">Your game will stop and this score won't be saved.</p>
+    <div class="confirm-btns">
+      <button class="big-btn keep-going" id="keepGoingBtn" type="button">No, keep playing</button>
+      <button class="big-btn yes-quit" id="yesQuitBtn" type="button">Yes, quit</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // ---------- Settings ----------
   const MIN_TABLE = 1;
@@ -355,8 +388,39 @@
     refreshChampion();
   }
   $("menuBtn").onclick = quitToStart;
-  $("quitQuizBtn").onclick = quitToStart;
-  $("quitResultsBtn").onclick = quitToStart;
+
+  // "Are you sure?" step before quitting
+  let confirmOpen = false;
+  function askToQuit(onResults) {
+    if (onResults) {
+      // On the results screen, only ask when there's a score that hasn't been saved yet
+      const unsaved = !$("initialsBox").hidden && !$("initials").disabled;
+      if (!unsaved) { quitToStart(); return; }
+      $("confirmText").textContent = "You haven't saved your score with your initials yet.";
+      $("keepGoingBtn").textContent = "No, stay here";
+    } else {
+      $("confirmText").textContent = "Your game will stop and this score won't be saved.";
+      $("keepGoingBtn").textContent = "No, keep playing";
+    }
+    confirmOpen = true;
+    $("confirmQuit").hidden = false;
+    $("keepGoingBtn").focus();
+  }
+  function closeConfirm() {
+    confirmOpen = false;
+    $("confirmQuit").hidden = true;
+  }
+  $("quitQuizBtn").onclick = () => askToQuit(false);
+  $("quitResultsBtn").onclick = () => askToQuit(true);
+  $("yesQuitBtn").onclick = () => { closeConfirm(); quitToStart(); };
+  $("keepGoingBtn").onclick = () => {
+    closeConfirm();
+    if ($("quiz").classList.contains("active")) $("answer").focus();
+    else if (!$("initialsBox").hidden) $("initials").focus();
+  };
+  document.addEventListener("keydown", e => {
+    if (confirmOpen && e.key === "Escape") $("keepGoingBtn").click();
+  });
 
   function showScreen(id) {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -473,7 +537,7 @@
   updateMuteButton();
 
   function checkAnswer() {
-    if (locked) return;
+    if (locked || confirmOpen) return;
     const input = $("answer");
     const raw = input.value.trim();
     if (raw === "" || !/^\d+$/.test(raw)) {
@@ -526,7 +590,7 @@
     else if (k === "✔") { btn.classList.add("k-go"); btn.setAttribute("aria-label", "Check answer"); }
     else btn.style.background = COLOURS[i % COLOURS.length];
     btn.onclick = () => {
-      if (locked) return;
+      if (locked || confirmOpen) return;
       const input = $("answer");
       if (k === "⌫") input.value = input.value.slice(0, -1);
       else if (k === "✔") checkAnswer();
