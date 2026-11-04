@@ -152,6 +152,33 @@
   .mute-btn:focus-visible { outline: 4px solid var(--blue); outline-offset: 3px; }
   .mute-btn.off { background: #dfe3ea; }
 
+  /* today's champion + initials */
+  .champ {
+    display: flex; align-items: center; gap: 12px; text-align: left;
+    background: linear-gradient(90deg, #fff3b0, #ffd6e8);
+    border: 4px dashed var(--orange); border-radius: 20px;
+    padding: 10px 14px; margin: 10px 0 12px;
+  }
+  .champ .trophy { font-size: 2.4rem; animation: bounce 2s ease-in-out infinite; }
+  .champ-text { min-width: 0; }
+  .champ-label { font-size: .9rem; font-weight: 800; color: var(--purple); text-transform: uppercase; letter-spacing: .08em; }
+  .champ-name { font-size: 1.5rem; font-weight: 800; line-height: 1.15; }
+  .champ-detail { font-size: 1rem; }
+  .initials-box {
+    margin: 16px auto 4px; padding: 12px; max-width: 380px;
+    background: #eef6ff; border: 4px solid var(--blue); border-radius: 20px;
+  }
+  .initials-box label { font-size: 1.15rem; }
+  .initials-row { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  .initials-input {
+    font-family: inherit; font-size: 2rem; font-weight: 800; width: 130px;
+    text-align: center; text-transform: uppercase; letter-spacing: .2em;
+    border: 4px solid var(--purple); border-radius: 16px; padding: 2px 6px; color: var(--ink); background: #fff;
+  }
+  .initials-input:focus { outline: none; box-shadow: 0 0 0 5px rgba(131,56,236,.25); }
+  .big-btn.save-btn { margin-top: 0; padding: 8px 22px; font-size: 1.3rem; background: var(--green); }
+  .save-msg { min-height: 1.4em; font-weight: 800; margin-top: 6px; font-size: 1.15rem; color: var(--purple); }
+
   .confetti { position: fixed; top: -20px; width: 12px; height: 18px; z-index: 5; pointer-events: none; animation: fall linear forwards; }
   @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
 
@@ -173,6 +200,14 @@
   <!-- START SCREEN -->
   <section id="start" class="screen active">
     <h1><span>🌈</span> Times Tables Fun <span>⭐</span></h1>
+    <div class="champ" aria-live="polite">
+      <div class="trophy" aria-hidden="true">🏆</div>
+      <div class="champ-text">
+        <div class="champ-label">Today's champion</div>
+        <div class="champ-name" id="champName">No champion yet!</div>
+        <div class="champ-detail" id="champDetail">Get a question right to claim the crown.</div>
+      </div>
+    </div>
     <p class="sub">Which times table would you most like to practise?</p>
     <div class="tables" id="tables"></div>
 
@@ -209,6 +244,14 @@
     <div class="score-big" id="scoreBig"></div>
     <p class="sub" id="scoreMsg"></p>
     <ul class="review" id="review"></ul>
+    <form class="initials-box" id="initialsBox" hidden>
+      <label for="initials"><strong>Type your initials to save your score!</strong></label>
+      <div class="initials-row">
+        <input id="initials" class="initials-input" maxlength="3" autocomplete="off" placeholder="ABC">
+        <button class="big-btn save-btn" type="submit" id="saveBtn">Save ⭐</button>
+      </div>
+      <div class="save-msg" id="saveMsg" aria-live="polite"></div>
+    </form>
     <div class="btn-row">
       <button class="big-btn same" id="sameBtn">Play again 🔁</button>
       <button class="big-btn again" id="menuBtn">Pick another table 🎯</button>
@@ -289,7 +332,7 @@
 
   $("startBtn").onclick = startQuiz;
   $("sameBtn").onclick = startQuiz;
-  $("menuBtn").onclick = () => showScreen("start");
+  $("menuBtn").onclick = () => { showScreen("start"); refreshChampion(); };
 
   function showScreen(id) {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -500,9 +543,158 @@
         review.appendChild(li);
       });
     }
+    // Ask for initials when at least one answer was right
+    $("initialsBox").hidden = score < 1;
+    $("initials").value = "";
+    $("initials").disabled = false;
+    $("saveBtn").disabled = false;
+    $("saveBtn").textContent = "Save ⭐";
+    $("saveMsg").textContent = "";
+
     showScreen("results");
+    if (score >= 1) $("initials").focus();
     if (pct >= 0.7) confetti();
   }
+
+  // ---------- Today's champion ----------
+  // On the shared web page, scores go to a shared score board so everyone sees the same champion.
+  // Opened as a plain file, scores are kept in this browser instead.
+  const LOCAL_KEY = "ttf-scores";
+  let sharedDb = null;
+  let sharedChecking = !!(window.claude && typeof window.claude.use === "function");
+  let sharedScores = [];
+  let localScores = [];
+  let unsubscribe = null;
+  let subscribedDay = null;
+
+  function todayKey() {
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" +
+           String(d.getDate()).padStart(2, "0");
+  }
+
+  function isValidEntry(s) {
+    return s && typeof s.initials === "string" && /^[A-Z]{1,3}$/.test(s.initials) &&
+      Number.isInteger(s.score) && s.score >= 1 && s.score <= 20 &&
+      (s.total === 10 || s.total === 20) && Number.isInteger(s.table) &&
+      s.table >= 1 && s.table <= 12 && s.day === todayKey();
+  }
+
+  function readLocal() {
+    try {
+      const all = JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]");
+      return Array.isArray(all) ? all.filter(isValidEntry) : [];
+    } catch (e) { return []; }
+  }
+
+  function writeLocal(entry) {
+    try {
+      const keep = readLocal();   // only today's scores are kept
+      keep.push(entry);
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(keep));
+      return true;
+    } catch (e) { return false; }
+  }
+
+  // Highest score wins; on a tie, whoever got there first keeps the crown.
+  function bestOf(list) {
+    return list.filter(isValidEntry)
+      .sort((a, b) => (b.score - a.score) || ((a.at || 0) - (b.at || 0)))[0] || null;
+  }
+  function currentBest() { return bestOf(sharedScores.concat(localScores)); }
+
+  function renderChampion() {
+    const best = currentBest();
+    if (best) {
+      $("champName").textContent = `${best.initials}: ${best.score} right!`;
+      $("champDetail").textContent =
+        `${best.table} times table, ${best.mode === "hard" ? "Hard" : "Easy"} mode (${best.score} out of ${best.total})`;
+    } else if (sharedChecking) {
+      $("champName").textContent = "Checking…";
+      $("champDetail").textContent = "Looking up today's best score.";
+    } else {
+      $("champName").textContent = "No champion yet!";
+      $("champDetail").textContent = "Get a question right to claim the crown.";
+    }
+  }
+
+  function refreshChampion() {
+    localScores = readLocal();
+    if (sharedDb && subscribedDay !== todayKey()) subscribeToday();
+    renderChampion();
+  }
+
+  function subscribeToday() {
+    const day = todayKey();
+    if (unsubscribe) unsubscribe();
+    subscribedDay = day;
+    sharedScores = [];
+    sharedChecking = true;
+    const timer = setTimeout(() => { sharedChecking = false; renderChampion(); }, 10000);
+    unsubscribe = sharedDb.collection("scores")
+      .where("day", "==", day).orderBy("score", "desc").limit(50)
+      .onSnapshot(snap => {
+        if (!snap.metadata.fromCache) { clearTimeout(timer); sharedChecking = false; }
+        sharedScores = snap.docs.map(d => d.data());
+        renderChampion();
+      }, () => {
+        clearTimeout(timer);
+        sharedDb = null; sharedChecking = false; subscribedDay = null;
+        renderChampion();
+      });
+  }
+
+  async function connectScoreBoard() {
+    if (!sharedChecking) return;
+    try { sharedDb = await window.claude.use("db"); } catch (e) { sharedDb = null; }
+    if (sharedDb) subscribeToday();
+    else { sharedChecking = false; renderChampion(); }
+  }
+
+  $("initials").addEventListener("input", e => {
+    e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3);
+  });
+
+  $("initialsBox").addEventListener("submit", async e => {
+    e.preventDefault();
+    const initials = $("initials").value;
+    if (!initials) {
+      $("saveMsg").textContent = "Type at least one letter first! ✏️";
+      $("initials").focus();
+      return;
+    }
+    const entry = { initials, score, total: questions.length, table: chosenTable,
+                    mode: chosenMode, day: todayKey(), at: Date.now() };
+    const before = currentBest();
+    $("saveBtn").disabled = true;
+    $("initials").disabled = true;
+    $("saveMsg").textContent = "Saving…";
+
+    let saved = false;
+    if (sharedDb) {
+      try { await sharedDb.collection("scores").add(entry); saved = true; }
+      catch (err) { saved = false; }
+    }
+    if (!saved) {
+      saved = writeLocal(entry);
+      localScores = readLocal();
+    }
+    if (!saved) {
+      $("saveMsg").textContent = "Your score couldn't be saved this time. Try again?";
+      $("saveBtn").disabled = false;
+      $("initials").disabled = false;
+      return;
+    }
+
+    $("saveMsg").textContent = (!before || entry.score > before.score)
+      ? "👑 Saved! You're today's champion!"
+      : `Saved! Today's best is ${before.score}. Can you beat it?`;
+    $("saveBtn").textContent = "Saved ✔";
+    renderChampion();
+  });
+
+  refreshChampion();
+  connectScoreBoard();
 
   function confetti() {
     for (let i = 0; i < 80; i++) {
