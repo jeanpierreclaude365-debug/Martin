@@ -210,6 +210,17 @@
   .big-btn.yes-quit { background: var(--red); }
   .big-btn.keep-going { background: var(--green); }
 
+  .champ-reset {
+    margin-left: auto; flex: none; width: 42px; height: 42px; border-radius: 50%;
+    border: 3px solid var(--red); background: #fff; color: var(--red);
+    font-family: inherit; font-size: 1.25rem; font-weight: 800; line-height: 1; cursor: pointer;
+    box-shadow: 0 3px 0 rgba(0,0,0,.15);
+  }
+  .champ-reset:hover { background: var(--red); color: #fff; }
+  .champ-reset:focus-visible { outline: 4px solid var(--blue); outline-offset: 2px; }
+  .champ-reset:disabled { opacity: .5; cursor: wait; }
+  .champ-reset[hidden] { display: none; }
+
   .confetti { position: fixed; top: -20px; width: 12px; height: 18px; z-index: 5; pointer-events: none; animation: fall linear forwards; }
   @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
 
@@ -238,6 +249,7 @@
         <div class="champ-name" id="champName">No champion yet!</div>
         <div class="champ-detail" id="champDetail">Get a question right to claim the crown.</div>
       </div>
+      <button class="champ-reset" id="champReset" type="button" aria-label="Reset today's champion" title="Reset today's champion" hidden>✖</button>
     </div>
     <p class="sub">Which times table would you most like to practise?</p>
     <div class="tables" id="tables"></div>
@@ -402,6 +414,9 @@
       $("confirmText").textContent = "Your game will stop and this score won't be saved.";
       $("keepGoingBtn").textContent = "No, keep playing";
     }
+    $("confirmTitle").textContent = "Are you sure you want to quit?";
+    $("yesQuitBtn").textContent = "Yes, quit";
+    onConfirmYes = quitToStart;
     confirmOpen = true;
     $("confirmQuit").hidden = false;
     $("keepGoingBtn").focus();
@@ -412,10 +427,12 @@
   }
   $("quitQuizBtn").onclick = () => askToQuit(false);
   $("quitResultsBtn").onclick = () => askToQuit(true);
-  $("yesQuitBtn").onclick = () => { closeConfirm(); quitToStart(); };
+  let onConfirmYes = quitToStart;
+  $("yesQuitBtn").onclick = () => { closeConfirm(); onConfirmYes(); };
   $("keepGoingBtn").onclick = () => {
     closeConfirm();
     if ($("quiz").classList.contains("active")) $("answer").focus();
+    else if ($("start").classList.contains("active")) $("champReset").focus();
     else if (!$("initialsBox").hidden) $("initials").focus();
   };
   document.addEventListener("keydown", e => {
@@ -694,6 +711,7 @@
 
   function renderChampion() {
     const best = currentBest();
+    $("champReset").hidden = !best;
     if (best) {
       $("champName").textContent = `${best.initials}: ${best.score} right!`;
       $("champDetail").textContent =
@@ -781,6 +799,41 @@
     $("saveBtn").textContent = "Saved ✔";
     renderChampion();
   });
+
+  // Reset today's champion (with an "Are you sure?" step)
+  function askResetChampion() {
+    $("confirmTitle").textContent = "Reset today's champion?";
+    $("confirmText").textContent = "This clears all of today's scores, so the champion box goes back to blank.";
+    $("keepGoingBtn").textContent = "No, keep it";
+    $("yesQuitBtn").textContent = "Yes, reset";
+    onConfirmYes = resetChampion;
+    confirmOpen = true;
+    $("confirmQuit").hidden = false;
+    $("keepGoingBtn").focus();
+  }
+
+  async function resetChampion() {
+    const day = todayKey();
+    $("champReset").disabled = true;
+    try { localStorage.setItem(LOCAL_KEY, "[]"); } catch (e) {}
+    localScores = [];
+    let failed = false;
+    if (sharedDb) {
+      try {
+        const scores = sharedDb.collection("scores");
+        const snap = await scores.where("day", "==", day).limit(1000).get();
+        for (const d of snap.docs) await scores.doc(d.id).delete();
+        sharedScores = [];
+      } catch (err) { failed = true; }
+    }
+    $("champReset").disabled = false;
+    renderChampion();
+    if (failed) {
+      $("champDetail").textContent =
+        "The shared champion couldn't be reset. Only people who can save scores here can reset it.";
+    }
+  }
+  $("champReset").onclick = askResetChampion;
 
   refreshChampion();
   connectScoreBoard();
