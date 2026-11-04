@@ -233,6 +233,8 @@
     font-weight: 800;
   }
   .used[hidden] { display: none; }
+  .used { transition: opacity .5s ease; }
+  .used.fading { opacity: 0; }
   .used-label { font-size: 1rem; color: var(--purple); }
   .used-count {
     font-size: 1.1rem; background: var(--yellow); border-radius: 999px;
@@ -476,7 +478,21 @@
   function showScreen(id) {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     $(id).classList.add("active");
-    $("used").hidden = id !== "start";   // only on the landing page
+    // "Used" shows only on the landing page, for 3 seconds
+    if (id === "start") flashUsed();
+    else { clearTimeout(usedTimer); $("used").hidden = true; }
+  }
+
+  let usedTimer = null;
+  function flashUsed() {
+    const el = $("used");
+    clearTimeout(usedTimer);
+    el.hidden = false;
+    el.classList.remove("fading");
+    usedTimer = setTimeout(() => {
+      el.classList.add("fading");
+      usedTimer = setTimeout(() => { el.hidden = true; }, 500);
+    }, 3000);
   }
 
   // ---------- Random question order ----------
@@ -878,8 +894,14 @@
   // visit count, so visits from different people never overwrite each other.
   // Opened as a plain file, it counts visits in this browser.
   const USED_KEY = "ttf-used";
+  let usedShownOnce = false;
   function showUsed(n) {
     $("usedCount").textContent = Number.isFinite(n) ? n.toLocaleString() : "–";
+    // Start the 3-second timer once the first number appears
+    if (!usedShownOnce) {
+      usedShownOnce = true;
+      if ($("start").classList.contains("active")) flashUsed();
+    }
   }
   function countLocalVisit() {
     try {
