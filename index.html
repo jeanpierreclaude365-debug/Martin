@@ -106,6 +106,38 @@
   .medium { background: var(--orange); }
   .hard { background: var(--red); }
 
+  /* 6 second challenge switch */
+  .quick-btn {
+    display: block; width: 100%; margin-top: 12px; padding: 10px 12px;
+    font-family: inherit; font-size: 1.2rem; font-weight: 800; line-height: 1.2; cursor: pointer;
+    color: var(--purple); background: #f4efff; border: 4px dashed var(--purple); border-radius: 18px;
+    transition: transform .1s;
+  }
+  .quick-btn small { display: block; font-size: .9rem; font-weight: 600; color: var(--ink); }
+  .quick-btn .state { display: inline-block; margin-left: 4px; padding: 0 10px; border-radius: 999px;
+    background: #dfe3ea; color: var(--ink); font-size: 1rem; }
+  .quick-btn.on { color: #fff; background: linear-gradient(135deg, var(--purple), var(--pink)); border-style: solid; border-color: var(--ink); }
+  .quick-btn.on small { color: #fff; }
+  .quick-btn.on .state { background: var(--yellow); color: var(--ink); }
+  .quick-btn:focus-visible { outline: 4px solid var(--blue); outline-offset: 3px; }
+
+  /* 6 second countdown bar on each question */
+  .qclock {
+    position: relative; height: 30px; margin: -6px 0 12px; border-radius: 999px;
+    background: #f1ecff; border: 3px solid var(--purple); overflow: hidden;
+  }
+  .qclock[hidden] { display: none; }
+  .qclock-fill { position: absolute; inset: 0 auto 0 0; width: 100%; background: #c4a8ff; transition: width .1s linear; }
+  .qclock.warn { border-color: var(--red); }
+  .qclock.warn .qclock-fill { background: #ffa3b5; }
+  .qclock-text {
+    position: relative; display: block; text-align: center; line-height: 24px;
+    font-weight: 800; font-size: 1.05rem; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .quick-tag { display: inline-block; margin-left: 4px; padding: 0 8px; border-radius: 999px;
+    background: var(--pink); color: #fff; font-size: .8rem; font-weight: 800; white-space: nowrap; }
+
   .big-btn {
     margin-top: 22px; font-size: 1.6rem; padding: 12px 40px;
     background: var(--blue);
@@ -353,6 +385,7 @@
       <button class="mode-btn medium" data-mode="medium">🙂 Medium<small>10 questions</small></button>
       <button class="mode-btn hard" data-mode="hard">🔥 Hard<small>20 questions</small></button>
     </div>
+    <button class="quick-btn" id="quickBtn" type="button" aria-pressed="false">⏰ 6 second challenge <span class="state" id="quickState">OFF</span><small>Only 6 seconds to answer each question!</small></button>
 
     <button class="big-btn" id="startBtn" disabled>Let's Go! 🚀</button>
     <div class="hint" id="hint">Choose a times table!</div>
@@ -367,6 +400,7 @@
       <span class="pill" id="counter">1 / 10</span>
     </div>
     <div class="progress"><div class="progress-fill" id="progress"></div></div>
+    <div class="qclock" id="qclock" hidden><div class="qclock-fill" id="qclockFill"></div><span class="qclock-text" id="qclockText">⏰ 6</span></div>
 
     <div class="question" id="question"></div>
     <input class="answer" id="answer" type="text" inputmode="numeric" autocomplete="off"
@@ -555,7 +589,8 @@
     $("startBtn").disabled = !ready;
     if (ownPicked && chosenTable === null) $("hint").textContent = "Type your number in the box!";
     else if (chosenTable === null) $("hint").textContent = "Now choose a times table!";
-    else $("hint").textContent = `${describe(chosenTable)}, ${MODE_NAMES[chosenMode]} mode. Ready?`;
+    else $("hint").textContent = `${describe(chosenTable)}, ${MODE_NAMES[chosenMode]} mode` +
+      (quickMode ? ", 6 seconds a question" : "") + ". Ready?";
   }
 
   // Easy mode is always picked to begin with
@@ -567,6 +602,17 @@
   }
   setMode("easy");
 
+  // 6 second challenge: an extra layer on top of any mode. Off to begin with.
+  let quickMode = false;
+  function setQuick(on) {
+    quickMode = on;
+    $("quickBtn").classList.toggle("on", on);
+    $("quickBtn").setAttribute("aria-pressed", on ? "true" : "false");
+    $("quickState").textContent = on ? "ON" : "OFF";
+    updateStart();
+  }
+  $("quickBtn").onclick = () => setQuick(!quickMode);
+
   $("startBtn").onclick = startQuiz;
   $("sameBtn").onclick = startQuiz;
   // Quit: stop the current game and go back to the landing screen
@@ -577,7 +623,9 @@
     clearInterval(timerInterval);
     timerInterval = null;
     locked = true;
+    stopQuestionClock();
     setMode("easy");
+    setQuick(false);
     showScreen("start");
     refreshChampion();
   }
@@ -700,6 +748,49 @@
     $("timer").textContent = "⏱ " + fmtTime(elapsedMs);
   }
 
+  // ---------- 6 second challenge countdown ----------
+  const QUICK_MS = 6000;
+  let gameQuick = false;          // is the current game a 6 second challenge?
+  let qLeft = 0, qLast = 0, qInterval = null;
+  function drawQuestionClock() {
+    const left = Math.max(0, qLeft);
+    $("qclockFill").style.width = (left / QUICK_MS * 100) + "%";
+    $("qclockText").textContent = "⏰ " + Math.ceil(left / 1000);
+    $("qclock").classList.toggle("warn", left <= 2000);
+  }
+  function startQuestionClock() {
+    stopQuestionClock();
+    $("qclock").hidden = !gameQuick;
+    if (!gameQuick) return;
+    qLeft = QUICK_MS;
+    qLast = performance.now();
+    drawQuestionClock();
+    qInterval = setInterval(() => {
+      const now = performance.now();
+      if (!confirmOpen) qLeft -= now - qLast;   // the clock waits while "Are you sure?" is open
+      qLast = now;
+      drawQuestionClock();
+      if (qLeft <= 0) { stopQuestionClock(); timeUp(); }
+    }, 100);
+  }
+  function stopQuestionClock() {
+    clearInterval(qInterval);
+    qInterval = null;
+  }
+  // Out of time: the question counts as wrong and the game moves on
+  function timeUp() {
+    if (locked) return;
+    locked = true;
+    if (current === questions.length - 1) stopTimer();
+    const q = questions[current];
+    mistakes.push({ ...q, given: null });
+    playWrong();
+    $("answer").classList.add("wrong");
+    $("feedback").textContent = `⏰ Time's up! ${fmt(q.a)} × ${fmt(q.b)} = ${fmt(q.answer)}`;
+    $("feedback").className = "feedback bad";
+    nextTimer = setTimeout(next, q.answer >= 10000 ? 3000 : 2000);
+  }
+
   // ---------- Quiz ----------
   function startQuiz() {
     if (chosenTable === null || chosenMode === null) return;
@@ -711,7 +802,8 @@
     current = 0;
     score = 0;
     mistakes = [];
-    $("tableLabel").textContent = describe(chosenTable);
+    gameQuick = quickMode;
+    $("tableLabel").textContent = describe(chosenTable) + (gameQuick ? " ⏰6s" : "");
     showScreen("quiz");
     showQuestion();
     startTimer();
@@ -733,6 +825,7 @@
     $("feedback").textContent = "";
     $("feedback").className = "feedback";
     $("answer").focus();
+    startQuestionClock();
   }
 
   // The answer box shows commas for big numbers (1,000,000) but only digits are checked
@@ -812,6 +905,7 @@
       return;
     }
     locked = true;
+    stopQuestionClock();
     if (current === questions.length - 1) stopTimer();   // last question answered
     const q = questions[current];
     const given = Number(raw);
@@ -870,7 +964,8 @@
     const starCount = pct === 1 ? 3 : pct >= 0.7 ? 2 : pct >= 0.4 ? 1 : 0;
     $("stars").textContent = "⭐".repeat(starCount) + "☆".repeat(3 - starCount);
     $("scoreBig").textContent = `${score} / ${total}`;
-    $("timeBig").textContent = `⏱ ${score} right in ${fmtTime(elapsedMs)}`;
+    $("timeBig").textContent = `⏱ ${score} right in ${fmtTime(elapsedMs)}` +
+      (gameQuick ? " (6 second challenge)" : "");
     if (pct === 1) {
       $("resultTitle").textContent = "PERFECT! 🏆";
       $("scoreMsg").textContent = chosenTable === "mix"
@@ -894,7 +989,8 @@
       mistakes.forEach(m => {
         const li = document.createElement("li");
         li.innerHTML = `${fmt(m.a)} × ${fmt(m.b)} = <span class="fix">${fmt(m.answer)}</span> ` +
-                       `(you said <span class="oops">${fmt(m.given)}</span>)`;
+                       (m.given === null ? "(no answer in time ⏰)"
+                         : `(you said <span class="oops">${fmt(m.given)}</span>)`);
         review.appendChild(li);
       });
     }
@@ -935,20 +1031,23 @@
     if (!s || typeof s.initials !== "string" || !/^[A-Z]{1,3}$/.test(s.initials)) return false;
     if (!Number.isInteger(s.score) || s.score < 1 || ![5, 10, 20].includes(s.total) || s.score > s.total) return false;
     if (typeof s.day !== "string") return false;
+    if (s.quick !== undefined && typeof s.quick !== "boolean") return false;
     if (s.ms !== undefined && !(Number.isInteger(s.ms) && s.ms >= 0 && s.ms < 86400000)) return false;
     return s.table === "mix" || (Number.isInteger(s.table) && s.table >= 1 && s.table <= MAX_OWN);
   }
 
   // Ranking:
   //   1. most right answers
-  //   2. then the bigger times table (the mixed challenge counts as the 12 times table)
-  //   3. then the faster time (scores saved before the timer existed come after timed ones)
-  //   4. then fewer questions (5 out of 5 beats 5 out of 10)
-  //   5. then whoever got there first
+  //   2. then 6 second challenge games before normal ones
+  //   3. then the bigger times table (the mixed challenge counts as the 12 times table)
+  //   4. then the faster time (scores saved before the timer existed come after timed ones)
+  //   5. then fewer questions (5 out of 5 beats 5 out of 10)
+  //   6. then whoever got there first
   const tableLevel = t => t === "mix" ? 12 : t;
   const timeOf = s => Number.isInteger(s.ms) ? s.ms : Infinity;
   function rankCmp(a, b) {
     return (b.score - a.score) ||
+      ((b.quick ? 1 : 0) - (a.quick ? 1 : 0)) ||
       (tableLevel(b.table) - tableLevel(a.table)) ||
       (timeOf(a) === timeOf(b) ? 0 : timeOf(a) < timeOf(b) ? -1 : 1) ||
       (a.total - b.total) ||
@@ -1008,7 +1107,8 @@
     $("champReset").hidden = !best;
     if (best) {
       $("champName").textContent = `${best.initials}: ${best.score} right!`;
-      const mode = MODE_NAMES[best.mode] ? `, ${MODE_NAMES[best.mode]} mode` : "";
+      const mode = (MODE_NAMES[best.mode] ? `, ${MODE_NAMES[best.mode]} mode` : "") +
+        (best.quick ? ", 6 second challenge" : "");
       $("champDetail").textContent =
         `${describe(best.table)}${mode} (${best.score} out of ${best.total}` +
         (Number.isInteger(best.ms) ? `, ⏱ ${fmtTime(best.ms)})` : ")");
@@ -1048,6 +1148,12 @@
       what.className = "what";
       const mode = MODE_NAMES[s.mode] ? ` · ${MODE_NAMES[s.mode]}` : "";
       what.textContent = `${describe(s.table)}${mode}`;
+      if (s.quick) {
+        const tag = document.createElement("span");
+        tag.className = "quick-tag";
+        tag.textContent = "⏰ 6s";
+        what.appendChild(tag);
+      }
       who.append(name, what);
       const pts = document.createElement("div");
       pts.className = "pts";
@@ -1163,7 +1269,7 @@
       return;
     }
     const entry = { initials, score, total: questions.length, table: chosenTable,
-                    mode: chosenMode, ms: elapsedMs, day: todayKey(), at: Date.now() };
+                    mode: chosenMode, quick: gameQuick, ms: elapsedMs, day: todayKey(), at: Date.now() };
     const before = currentBest();
     $("saveBtn").disabled = true;
     $("initials").disabled = true;
