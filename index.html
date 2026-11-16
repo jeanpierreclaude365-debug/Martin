@@ -237,6 +237,12 @@
   .board .what { font-size: .95rem; }
   .board .pts { font-size: 1.4rem; font-weight: 800; color: var(--purple); font-variant-numeric: tabular-nums; }
   .board-empty { font-size: 1.15rem; font-weight: 700; margin: 16px 0 0; }
+  .board li.me { outline: 4px solid var(--purple); outline-offset: 2px; }
+  .board .you { display: inline-block; margin-left: 6px; font-size: .85rem; letter-spacing: 0;
+    color: #fff; background: var(--purple); border-radius: 999px; padding: 0 8px; vertical-align: middle; }
+  .board-msg { font-size: 1.2rem; font-weight: 800; color: var(--purple); margin: 4px 0 0; }
+  .board-countdown { font-size: 1.05rem; font-weight: 700; margin: 14px 0 0; }
+  .board-msg[hidden], .board-countdown[hidden] { display: none; }
 
   /* "Are you sure?" check */
   .confirm {
@@ -397,8 +403,10 @@
     </div>
     <h1>🏅 Top 10 🏅</h1>
     <p class="sub">The best scores of all time!</p>
+    <p class="board-msg" id="boardMsg" aria-live="polite" hidden></p>
     <ol class="board" id="boardList"></ol>
     <p class="board-empty" id="boardEmpty" hidden>No scores yet! Play a game and save your initials to get on the board.</p>
+    <p class="board-countdown" id="boardCountdown" hidden></p>
     <button class="big-btn" id="boardPlayBtn" type="button">Let's play! 🚀</button>
   </section>
 
@@ -559,6 +567,7 @@
   let nextTimer = null;
   function quitToStart() {
     clearTimeout(nextTimer);
+    stopBoardTimer();
     locked = true;
     setMode("easy");
     showScreen("start");
@@ -979,6 +988,13 @@
       const name = document.createElement("div");
       name.className = "name";
       name.textContent = s.initials;
+      if (highlight && s.at === highlight.at && s.initials === highlight.initials) {
+        li.classList.add("me");
+        const you = document.createElement("span");
+        you.className = "you";
+        you.textContent = "You!";
+        name.appendChild(you);
+      }
       const what = document.createElement("div");
       what.className = "what";
       const mode = MODE_NAMES[s.mode] ? ` · ${MODE_NAMES[s.mode]}` : "";
@@ -995,7 +1011,38 @@
     else $("boardEmpty").textContent = "No scores yet! Play a game and save your initials to get on the board.";
   }
 
-  $("boardBtn").onclick = () => { renderBoard(); showScreen("board"); };
+  // After saving a score, the Top 10 shows for 15 seconds, then the app goes back to the start
+  const BOARD_SECONDS = 15;
+  let highlight = null;        // the score just saved, picked out on the board
+  let boardTimer = null;
+  function stopBoardTimer() {
+    clearInterval(boardTimer);
+    boardTimer = null;
+    highlight = null;
+    $("boardMsg").hidden = true;
+    $("boardCountdown").hidden = true;
+  }
+  function showBoardAfterSave(entry, message) {
+    stopBoardTimer();
+    highlight = entry;
+    $("boardMsg").textContent = message;
+    $("boardMsg").hidden = false;
+    let left = BOARD_SECONDS;
+    const tick = () => {
+      $("boardCountdown").textContent = `Back to the start in ${left}…`;
+      $("boardCountdown").hidden = false;
+    };
+    tick();
+    boardTimer = setInterval(() => {
+      left--;
+      if (left <= 0) quitToStart();
+      else tick();
+    }, 1000);
+    renderBoard();
+    showScreen("board");
+  }
+
+  $("boardBtn").onclick = () => { stopBoardTimer(); renderBoard(); showScreen("board"); };
   $("quitBoardBtn").onclick = quitToStart;
   $("boardPlayBtn").onclick = quitToStart;
 
@@ -1087,11 +1134,13 @@
     const better = topTen().filter(s => !(s.at === entry.at && s.initials === entry.initials))
       .filter(s => rankCmp(s, entry) < 0).length;
     const rankMsg = better < 10 ? ` You're number ${better + 1} on the Top 10!` : "";
-    $("saveMsg").textContent = (!before || rankCmp(entry, before) < 0)
+    const message = (!before || rankCmp(entry, before) < 0)
       ? `👑 Saved! You're today's champion!${rankMsg}`
       : `Saved! Today's best is ${before.score}. Can you beat it?${rankMsg}`;
+    $("saveMsg").textContent = message;
     $("saveBtn").textContent = "Saved ✔";
     renderChampion();
+    showBoardAfterSave(entry, message);
   });
 
   // Reset today's champion (with an "Are you sure?" step).
