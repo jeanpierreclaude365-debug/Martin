@@ -235,11 +235,15 @@
   .board .who { min-width: 0; overflow-wrap: anywhere; }
   .board .name { font-size: 1.4rem; font-weight: 800; line-height: 1.1; letter-spacing: .05em; }
   .board .what { font-size: .95rem; }
-  .board .pts { font-size: 1.4rem; font-weight: 800; color: var(--purple); font-variant-numeric: tabular-nums; }
   .board-empty { font-size: 1.15rem; font-weight: 700; margin: 16px 0 0; }
   .board li.me { outline: 4px solid var(--purple); outline-offset: 2px; }
   .board .you { display: inline-block; margin-left: 6px; font-size: .85rem; letter-spacing: 0;
     color: #fff; background: var(--purple); border-radius: 999px; padding: 0 8px; vertical-align: middle; }
+  .timer { background: #d9f7ff; font-variant-numeric: tabular-nums; }
+  .time-big { font-size: 1.5rem; font-weight: 800; color: var(--blue); margin-top: 6px; }
+  .board .pts { text-align: right; line-height: 1.15; }
+  .board .pts .sc { display: block; font-size: 1.4rem; font-weight: 800; color: var(--purple); font-variant-numeric: tabular-nums; }
+  .board .pts .tm { display: block; font-size: .95rem; font-weight: 700; color: var(--blue); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .board-msg { font-size: 1.2rem; font-weight: 800; color: var(--purple); margin: 4px 0 0; }
   .board-countdown { font-size: 1.05rem; font-weight: 700; margin: 14px 0 0; }
   .board-msg[hidden], .board-countdown[hidden] { display: none; }
@@ -359,6 +363,7 @@
     <div class="top-bar">
       <button class="quit-btn" id="quitQuizBtn" type="button">✖ Quit</button>
       <span class="pill" id="tableLabel">2 times table</span>
+      <span class="pill timer" id="timer" aria-label="Time">⏱ 0.0s</span>
       <span class="pill" id="counter">1 / 10</span>
     </div>
     <div class="progress"><div class="progress-fill" id="progress"></div></div>
@@ -379,6 +384,7 @@
     <h1 id="resultTitle">Well done!</h1>
     <div class="stars" id="stars"></div>
     <div class="score-big" id="scoreBig"></div>
+    <div class="time-big" id="timeBig"></div>
     <p class="sub" id="scoreMsg"></p>
     <ul class="review" id="review"></ul>
     <form class="initials-box" id="initialsBox" hidden>
@@ -568,6 +574,8 @@
   function quitToStart() {
     clearTimeout(nextTimer);
     stopBoardTimer();
+    clearInterval(timerInterval);
+    timerInterval = null;
     locked = true;
     setMode("easy");
     showScreen("start");
@@ -666,6 +674,32 @@
     });
   }
 
+  // ---------- Timer: starts at the first question, stops after the last answer ----------
+  let startTime = 0, elapsedMs = 0, timerInterval = null;
+  function fmtTime(ms) {
+    if (!Number.isFinite(ms)) return "–";
+    const secs = ms / 1000;
+    if (secs < 60) return secs.toFixed(1) + "s";
+    const m = Math.floor(secs / 60), r = Math.floor(secs % 60);
+    return `${m}m ${String(r).padStart(2, "0")}s`;
+  }
+  function startTimer() {
+    clearInterval(timerInterval);
+    startTime = performance.now();
+    elapsedMs = 0;
+    $("timer").textContent = "⏱ 0.0s";
+    timerInterval = setInterval(() => {
+      $("timer").textContent = "⏱ " + fmtTime(performance.now() - startTime);
+    }, 100);
+  }
+  function stopTimer() {
+    if (timerInterval === null) return;
+    clearInterval(timerInterval);
+    timerInterval = null;
+    elapsedMs = Math.round(performance.now() - startTime);
+    $("timer").textContent = "⏱ " + fmtTime(elapsedMs);
+  }
+
   // ---------- Quiz ----------
   function startQuiz() {
     if (chosenTable === null || chosenMode === null) return;
@@ -680,6 +714,7 @@
     $("tableLabel").textContent = describe(chosenTable);
     showScreen("quiz");
     showQuestion();
+    startTimer();
   }
 
   function showQuestion() {
@@ -777,6 +812,7 @@
       return;
     }
     locked = true;
+    if (current === questions.length - 1) stopTimer();   // last question answered
     const q = questions[current];
     const given = Number(raw);
     if (given === q.answer) {
@@ -834,6 +870,7 @@
     const starCount = pct === 1 ? 3 : pct >= 0.7 ? 2 : pct >= 0.4 ? 1 : 0;
     $("stars").textContent = "⭐".repeat(starCount) + "☆".repeat(3 - starCount);
     $("scoreBig").textContent = `${score} / ${total}`;
+    $("timeBig").textContent = `⏱ ${score} right in ${fmtTime(elapsedMs)}`;
     if (pct === 1) {
       $("resultTitle").textContent = "PERFECT! 🏆";
       $("scoreMsg").textContent = chosenTable === "mix"
@@ -898,13 +935,24 @@
     if (!s || typeof s.initials !== "string" || !/^[A-Z]{1,3}$/.test(s.initials)) return false;
     if (!Number.isInteger(s.score) || s.score < 1 || ![5, 10, 20].includes(s.total) || s.score > s.total) return false;
     if (typeof s.day !== "string") return false;
+    if (s.ms !== undefined && !(Number.isInteger(s.ms) && s.ms >= 0 && s.ms < 86400000)) return false;
     return s.table === "mix" || (Number.isInteger(s.table) && s.table >= 1 && s.table <= MAX_OWN);
   }
 
-  // Ranking: most right answers first; then fewer questions (a better score);
-  // then whoever got there first.
+  // Ranking:
+  //   1. most right answers
+  //   2. then the bigger times table (the mixed challenge counts as the 12 times table)
+  //   3. then the faster time (scores saved before the timer existed come after timed ones)
+  //   4. then fewer questions (5 out of 5 beats 5 out of 10)
+  //   5. then whoever got there first
+  const tableLevel = t => t === "mix" ? 12 : t;
+  const timeOf = s => Number.isInteger(s.ms) ? s.ms : Infinity;
   function rankCmp(a, b) {
-    return (b.score - a.score) || (a.total - b.total) || ((a.at || 0) - (b.at || 0));
+    return (b.score - a.score) ||
+      (tableLevel(b.table) - tableLevel(a.table)) ||
+      (timeOf(a) === timeOf(b) ? 0 : timeOf(a) < timeOf(b) ? -1 : 1) ||
+      (a.total - b.total) ||
+      ((a.at || 0) - (b.at || 0));
   }
 
   function readLocal() {
@@ -962,7 +1010,8 @@
       $("champName").textContent = `${best.initials}: ${best.score} right!`;
       const mode = MODE_NAMES[best.mode] ? `, ${MODE_NAMES[best.mode]} mode` : "";
       $("champDetail").textContent =
-        `${describe(best.table)}${mode} (${best.score} out of ${best.total})`;
+        `${describe(best.table)}${mode} (${best.score} out of ${best.total}` +
+        (Number.isInteger(best.ms) ? `, ⏱ ${fmtTime(best.ms)})` : ")");
     } else if (sharedChecking) {
       $("champName").textContent = "Checking…";
       $("champDetail").textContent = "Looking up today's best score.";
@@ -1000,9 +1049,15 @@
       const mode = MODE_NAMES[s.mode] ? ` · ${MODE_NAMES[s.mode]}` : "";
       what.textContent = `${describe(s.table)}${mode}`;
       who.append(name, what);
-      const pts = document.createElement("span");
+      const pts = document.createElement("div");
       pts.className = "pts";
-      pts.textContent = `${s.score}/${s.total}`;
+      const sc = document.createElement("span");
+      sc.className = "sc";
+      sc.textContent = `${s.score}/${s.total}`;
+      const tm = document.createElement("span");
+      tm.className = "tm";
+      tm.textContent = Number.isInteger(s.ms) ? "⏱ " + fmtTime(s.ms) : "⏱ –";
+      pts.append(sc, tm);
       li.append(rank, who, pts);
       ol.appendChild(li);
     });
@@ -1108,7 +1163,7 @@
       return;
     }
     const entry = { initials, score, total: questions.length, table: chosenTable,
-                    mode: chosenMode, day: todayKey(), at: Date.now() };
+                    mode: chosenMode, ms: elapsedMs, day: todayKey(), at: Date.now() };
     const before = currentBest();
     $("saveBtn").disabled = true;
     $("initials").disabled = true;
