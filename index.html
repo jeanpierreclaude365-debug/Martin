@@ -66,24 +66,44 @@
   .tables {
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
   }
-  .table-btn, .mode-btn, .big-btn, .key {
+  .table-btn, .mode-btn, .big-btn, .key, .special-btn {
     font-family: inherit; border: none; cursor: pointer; color: #fff;
     border-radius: 18px; font-weight: 800;
     box-shadow: 0 6px 0 rgba(0,0,0,.2);
     transition: transform .1s, box-shadow .1s;
   }
-  .table-btn:active, .mode-btn:active, .big-btn:active, .key:active {
+  .table-btn:active, .mode-btn:active, .big-btn:active, .key:active, .special-btn:active {
     transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,.2);
   }
   .table-btn { font-size: 1.8rem; padding: 10px 0; }
-  .table-btn.selected, .mode-btn.selected {
+  .table-btn.selected, .mode-btn.selected, .special-btn.selected {
     outline: 5px solid var(--ink); outline-offset: 2px; transform: scale(1.06);
   }
 
-  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .mode-btn { font-size: 1.3rem; padding: 12px 8px; line-height: 1.2; }
-  .mode-btn small { display: block; font-size: .95rem; font-weight: 600; opacity: .95; }
+  /* mixed challenge + my own number */
+  .specials { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .special-btn { font-size: 1.25rem; padding: 10px 6px; line-height: 1.2; }
+  .special-btn small { display: block; font-size: .9rem; font-weight: 600; }
+  .mix-btn { background: linear-gradient(135deg, var(--red), var(--purple)); }
+  .own-btn { background: linear-gradient(135deg, var(--blue), var(--green)); }
+  .own-box {
+    margin-top: 14px; padding: 12px; background: #eef6ff;
+    border: 4px solid var(--blue); border-radius: 20px;
+  }
+  .own-box label { font-size: 1.1rem; }
+  .own-input {
+    font-family: inherit; font-size: 1.9rem; font-weight: 800; text-align: center;
+    width: 100%; max-width: 340px; margin-top: 6px; padding: 2px 8px;
+    border: 4px solid var(--purple); border-radius: 16px; color: var(--ink); background: #fff;
+  }
+  .own-input:focus { outline: none; box-shadow: 0 0 0 5px rgba(131,56,236,.25); }
+  .own-msg { min-height: 1.4em; font-weight: 800; color: var(--red); }
+
+  .modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .mode-btn { font-size: 1.2rem; padding: 12px 4px; line-height: 1.2; }
+  .mode-btn small { display: block; font-size: .9rem; font-weight: 600; opacity: .95; }
   .easy { background: var(--lime); }
+  .medium { background: var(--orange); }
   .hard { background: var(--red); }
 
   .big-btn {
@@ -94,7 +114,7 @@
   .hint { min-height: 1.6em; margin-top: 10px; font-size: 1.05rem; color: var(--purple); font-weight: 700; }
 
   /* quiz */
-  .top-bar { display: flex; justify-content: space-between; align-items: center; font-size: 1.15rem; font-weight: 700; gap: 8px; }
+  .top-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; font-size: 1.15rem; font-weight: 700; gap: 8px; }
   .pill { background: var(--yellow); padding: 4px 14px; border-radius: 999px; }
   .progress { height: 18px; background: #eee; border-radius: 999px; overflow: hidden; margin: 12px 0 18px; border: 3px solid var(--ink); }
   .progress-fill {
@@ -104,22 +124,25 @@
   }
   .question {
     font-size: clamp(2.8rem, 13vw, 4.6rem); font-weight: 800; margin: 6px 0 12px;
-    line-height: 1;
+    line-height: 1.05; overflow-wrap: anywhere;
   }
+  .question.q-mid { font-size: clamp(2rem, 9vw, 3.4rem); }
+  .question.q-long { font-size: clamp(1.5rem, 6.5vw, 2.5rem); }
   .question .x { color: var(--pink); }
   .question .eq { color: var(--orange); }
   .answer {
     font-family: inherit; font-size: 2.6rem; font-weight: 800; text-align: center;
-    width: 100%; max-width: 240px; padding: 6px 10px;
+    width: 100%; max-width: 340px; padding: 6px 10px;
     border: 5px solid var(--blue); border-radius: 20px; color: var(--ink);
     outline: none;
   }
+  .answer.a-long { font-size: 1.7rem; }
   .answer:focus { border-color: var(--purple); box-shadow: 0 0 0 5px rgba(131,56,236,.25); }
   .answer.right { border-color: var(--green); background: #e6fff7; }
   .answer.wrong { border-color: var(--red); background: #ffe8ec; animation: shake .4s; }
   @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
 
-  .feedback { min-height: 2.2em; font-size: 1.45rem; font-weight: 800; margin: 10px 0 4px; }
+  .feedback { min-height: 2.2em; font-size: 1.45rem; font-weight: 800; margin: 10px 0 4px; overflow-wrap: anywhere; }
   .feedback.good { color: var(--green); }
   .feedback.bad { color: var(--red); }
 
@@ -131,7 +154,7 @@
   /* results */
   .stars { font-size: 3rem; letter-spacing: 6px; margin: 6px 0; }
   .score-big { font-size: 3.2rem; font-weight: 800; color: var(--purple); line-height: 1; }
-  .review { text-align: left; margin: 14px auto 0; max-width: 360px; font-size: 1.15rem; }
+  .review { text-align: left; margin: 14px auto 0; max-width: 380px; font-size: 1.15rem; overflow-wrap: anywhere; }
   .review li { margin: 4px 0; }
   .review .fix { color: var(--green); font-weight: 800; }
   .review .oops { color: var(--red); text-decoration: line-through; }
@@ -160,7 +183,7 @@
     padding: 10px 14px; margin: 10px 0 12px;
   }
   .champ .trophy { font-size: 2.4rem; animation: bounce 2s ease-in-out infinite; }
-  .champ-text { min-width: 0; }
+  .champ-text { min-width: 0; overflow-wrap: anywhere; }
   .champ-label { font-size: .9rem; font-weight: 800; color: var(--purple); text-transform: uppercase; letter-spacing: .08em; }
   .champ-name { font-size: 1.5rem; font-weight: 800; line-height: 1.15; }
   .champ-detail { font-size: 1rem; }
@@ -169,10 +192,11 @@
     background: #eef6ff; border: 4px solid var(--blue); border-radius: 20px;
   }
   .initials-box label { font-size: 1.15rem; }
+  .initials-help { font-size: 1rem; color: var(--purple); font-weight: 700; }
   .initials-row { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 8px; }
   .initials-input {
     font-family: inherit; font-size: 2rem; font-weight: 800; width: 130px;
-    text-align: center; text-transform: uppercase; letter-spacing: .2em;
+    text-align: center; text-transform: uppercase; letter-spacing: .15em;
     border: 4px solid var(--purple); border-radius: 16px; padding: 2px 6px; color: var(--ink); background: #fff;
   }
   .initials-input:focus { outline: none; box-shadow: 0 0 0 5px rgba(131,56,236,.25); }
@@ -189,7 +213,32 @@
   .quit-btn:focus-visible { outline: 4px solid var(--blue); outline-offset: 3px; }
   .results-top { display: flex; justify-content: flex-start; margin-bottom: 4px; }
 
-  /* "Are you sure?" quit check */
+  /* Top 10 leaderboard */
+  .board-btn {
+    font-family: inherit; font-size: 1.25rem; font-weight: 800; cursor: pointer;
+    color: var(--ink); background: var(--yellow); border: none; border-radius: 999px;
+    padding: 6px 22px; margin: 0 0 12px; box-shadow: 0 5px 0 rgba(0,0,0,.2);
+    transition: transform .1s, box-shadow .1s;
+  }
+  .board-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.2); }
+  .board-btn:focus-visible { outline: 4px solid var(--blue); outline-offset: 3px; }
+  .board { list-style: none; margin: 12px auto 0; padding: 0; max-width: 460px; display: grid; gap: 8px; }
+  .board li {
+    display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 10px;
+    text-align: left; padding: 8px 12px; border-radius: 16px; background: #f4efff;
+    border: 3px solid transparent;
+  }
+  .board li:nth-child(1) { background: #fff3b0; border-color: #f7b801; }
+  .board li:nth-child(2) { background: #eef1f6; border-color: #b8c0cc; }
+  .board li:nth-child(3) { background: #ffe6d2; border-color: #e8975a; }
+  .board .rank { font-size: 1.6rem; font-weight: 800; text-align: center; color: var(--purple); }
+  .board .who { min-width: 0; overflow-wrap: anywhere; }
+  .board .name { font-size: 1.4rem; font-weight: 800; line-height: 1.1; letter-spacing: .05em; }
+  .board .what { font-size: .95rem; }
+  .board .pts { font-size: 1.4rem; font-weight: 800; color: var(--purple); font-variant-numeric: tabular-nums; }
+  .board-empty { font-size: 1.15rem; font-weight: 700; margin: 16px 0 0; }
+
+  /* "Are you sure?" check */
   .confirm {
     position: fixed; inset: 0; z-index: 10;
     display: flex; align-items: center; justify-content: center;
@@ -249,6 +298,8 @@
     .app { padding: 20px 14px; border-width: 5px; }
     .table-btn { font-size: 1.5rem; }
     .tables { gap: 8px; }
+    .mode-btn { font-size: 1.05rem; }
+    .special-btn { font-size: 1.1rem; }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -272,17 +323,29 @@
       </div>
       <button class="champ-reset" id="champReset" type="button" aria-label="Reset today's champion" title="Reset today's champion" hidden>✖</button>
     </div>
+    <button class="board-btn" id="boardBtn" type="button">🏅 Top 10 Leaderboard</button>
+
     <p class="sub">Which times table would you most like to practise?</p>
     <div class="tables" id="tables"></div>
+    <div class="specials">
+      <button class="special-btn mix-btn" id="mixBtn" type="button">🎲 Challenge<small>Mixed ×1 to ×12</small></button>
+      <button class="special-btn own-btn" id="ownBtn" type="button">✏️ My own number<small>Any table you like</small></button>
+    </div>
+    <div class="own-box" id="ownBox" hidden>
+      <label for="ownNumber"><strong>Type your times table number</strong><br>(from 1 to 1,000,000,000,000)</label><br>
+      <input id="ownNumber" class="own-input" type="text" inputmode="numeric" autocomplete="off" maxlength="17" placeholder="e.g. 25">
+      <div class="own-msg" id="ownMsg" aria-live="polite"></div>
+    </div>
 
     <h2>Pick your mode</h2>
     <div class="modes">
       <button class="mode-btn easy" data-mode="easy">😊 Easy<small>5 questions</small></button>
-      <button class="mode-btn hard" data-mode="hard">🔥 Hard<small>10 questions</small></button>
+      <button class="mode-btn medium" data-mode="medium">🙂 Medium<small>10 questions</small></button>
+      <button class="mode-btn hard" data-mode="hard">🔥 Hard<small>20 questions</small></button>
     </div>
 
     <button class="big-btn" id="startBtn" disabled>Let's Go! 🚀</button>
-    <div class="hint" id="hint">Choose a times table and a mode!</div>
+    <div class="hint" id="hint">Choose a times table!</div>
   </section>
 
   <!-- QUIZ SCREEN -->
@@ -296,7 +359,7 @@
 
     <div class="question" id="question"></div>
     <input class="answer" id="answer" type="text" inputmode="numeric" autocomplete="off"
-           maxlength="4" aria-label="Your answer" placeholder="?">
+           maxlength="22" aria-label="Your answer" placeholder="?">
     <div class="feedback" id="feedback"></div>
 
     <div class="keypad" id="keypad"></div>
@@ -313,17 +376,30 @@
     <p class="sub" id="scoreMsg"></p>
     <ul class="review" id="review"></ul>
     <form class="initials-box" id="initialsBox" hidden>
-      <label for="initials"><strong>Type your initials to save your score!</strong></label>
+      <label for="initials"><strong>Type your name or initials to save your score!</strong></label>
+      <div class="initials-help">1, 2 or 3 letters</div>
       <div class="initials-row">
-        <input id="initials" class="initials-input" maxlength="3" autocomplete="off" placeholder="ABC">
+        <input id="initials" class="initials-input" maxlength="3" autocomplete="off">
         <button class="big-btn save-btn" type="submit" id="saveBtn">Save ⭐</button>
       </div>
       <div class="save-msg" id="saveMsg" aria-live="polite"></div>
     </form>
     <div class="btn-row">
       <button class="big-btn same" id="sameBtn">Play again 🔁</button>
-      <button class="big-btn again" id="menuBtn">Pick another table 🎯</button>
+      <button class="big-btn again" id="menuBtn">Pick another game 🎯</button>
     </div>
+  </section>
+
+  <!-- TOP 10 LEADERBOARD SCREEN -->
+  <section id="board" class="screen">
+    <div class="results-top">
+      <button class="quit-btn" id="quitBoardBtn" type="button">✖ Quit</button>
+    </div>
+    <h1>🏅 Top 10 🏅</h1>
+    <p class="sub">The best scores of all time!</p>
+    <ol class="board" id="boardList"></ol>
+    <p class="board-empty" id="boardEmpty" hidden>No scores yet! Play a game and save your initials to get on the board.</p>
+    <button class="big-btn" id="boardPlayBtn" type="button">Let's play! 🚀</button>
   </section>
 
 </div>
@@ -349,14 +425,18 @@
   // ---------- Settings ----------
   const MIN_TABLE = 1;
   const MAX_TABLE = 12;
-  const QUESTION_COUNT = { easy: 5, hard: 10 };
+  const MAX_OWN = 1000000000000;          // "My own number" can go up to one trillion
+  const QUESTION_COUNT = { easy: 5, medium: 10, hard: 20 };
+  const MODE_NAMES = { easy: "Easy", medium: "Medium", hard: "Hard" };
   const COLOURS = ["#ff4d6d","#ff9f1c","#f7b801","#2ec4b6","#3a86ff","#8338ec",
                    "#ff5fa2","#06d6a0","#ef476f","#118ab2","#fb5607","#9b5de5"];
   const PRAISE = ["Brilliant! 🎉","Super star! ⭐","Amazing! 🌟","You got it! 👍",
                   "Fantastic! 🥳","Wow, clever! 🧠","Great job! 🏆","Awesome! 🚀"];
 
   // ---------- State ----------
+  // chosenTable is a number (1 to one trillion), "mix" for the mixed challenge, or null
   let chosenTable = null;
+  let ownPicked = false;
   let chosenMode = null;
   let questions = [];
   let current = 0;
@@ -365,6 +445,8 @@
   let locked = false;
 
   const $ = id => document.getElementById(id);
+  const fmt = n => typeof n === "number" ? n.toLocaleString("en-GB") : String(n);
+  const describe = t => t === "mix" ? "Mixed challenge" : `${fmt(t)} times table`;
 
   // ---------- Background bubbles ----------
   for (let i = 0; i < 10; i++) {
@@ -381,6 +463,10 @@
   }
 
   // ---------- Start screen ----------
+  function clearPicks() {
+    document.querySelectorAll(".table-btn, .special-btn").forEach(b => b.classList.remove("selected"));
+  }
+
   const tablesEl = $("tables");
   for (let n = MIN_TABLE; n <= MAX_TABLE; n++) {
     const btn = document.createElement("button");
@@ -390,29 +476,72 @@
     btn.setAttribute("aria-label", n + " times table");
     btn.onclick = () => {
       chosenTable = n;
-      document.querySelectorAll(".table-btn").forEach(b => b.classList.remove("selected"));
+      ownPicked = false;
+      $("ownBox").hidden = true;
+      clearPicks();
       btn.classList.add("selected");
       updateStart();
     };
     tablesEl.appendChild(btn);
   }
 
+  // Mixed challenge: random questions from ×1 to ×12
+  $("mixBtn").onclick = () => {
+    chosenTable = "mix";
+    ownPicked = false;
+    $("ownBox").hidden = true;
+    clearPicks();
+    $("mixBtn").classList.add("selected");
+    updateStart();
+  };
+
+  // My own number: any times table from 1 to one trillion
+  $("ownBtn").onclick = () => {
+    ownPicked = true;
+    clearPicks();
+    $("ownBtn").classList.add("selected");
+    $("ownBox").hidden = false;
+    readOwnNumber();
+    $("ownNumber").focus();
+  };
+  function readOwnNumber() {
+    const digits = $("ownNumber").value.replace(/\D/g, "");
+    const n = digits ? Number(digits) : NaN;
+    if (!digits) {
+      chosenTable = null;
+      $("ownMsg").textContent = "";
+    } else if (n < 1) {
+      chosenTable = null;
+      $("ownMsg").textContent = "Pick a number from 1 upwards!";
+    } else if (n > MAX_OWN) {
+      chosenTable = null;
+      $("ownMsg").textContent = "That's too big! The biggest is 1,000,000,000,000.";
+    } else {
+      chosenTable = n;
+      $("ownMsg").textContent = "";
+    }
+    updateStart();
+  }
+  $("ownNumber").addEventListener("input", e => {
+    // Keep digits only and add commas so big numbers are easy to read
+    const digits = e.target.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "").slice(0, 13);
+    e.target.value = digits ? Number(digits).toLocaleString("en-GB") : "";
+    readOwnNumber();
+  });
+  $("ownNumber").addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); if (!$("startBtn").disabled) startQuiz(); }
+  });
+
   document.querySelectorAll(".mode-btn").forEach(btn => {
-    btn.onclick = () => {
-      chosenMode = btn.dataset.mode;
-      document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("selected"));
-      btn.classList.add("selected");
-      updateStart();
-    };
+    btn.onclick = () => setMode(btn.dataset.mode);
   });
 
   function updateStart() {
     const ready = chosenTable !== null && chosenMode !== null;
     $("startBtn").disabled = !ready;
-    if (!chosenTable && !chosenMode) $("hint").textContent = "Choose a times table and a mode!";
-    else if (!chosenTable) $("hint").textContent = "Now choose a times table!";
-    else if (!chosenMode) $("hint").textContent = "Now choose Easy or Hard!";
-    else $("hint").textContent = `The ${chosenTable} times table, ${chosenMode} mode — ready?`;
+    if (ownPicked && chosenTable === null) $("hint").textContent = "Type your number in the box!";
+    else if (chosenTable === null) $("hint").textContent = "Now choose a times table!";
+    else $("hint").textContent = `${describe(chosenTable)}, ${MODE_NAMES[chosenMode]} mode. Ready?`;
   }
 
   // Easy mode is always picked to begin with
@@ -518,16 +647,28 @@
     return list.slice(0, count);
   }
 
+  // Mixed challenge: random questions from all the tables ×1 to ×12, no question repeated
+  function makeMixed(count) {
+    const pairs = [];
+    for (let a = 1; a <= 12; a++) for (let b = a; b <= 12; b++) pairs.push([a, b]);
+    return shuffle(pairs).slice(0, count).map(([a, b]) => {
+      if (Math.random() < 0.5) [a, b] = [b, a];
+      return { a, b, answer: a * b };
+    });
+  }
+
   // ---------- Quiz ----------
   function startQuiz() {
+    if (chosenTable === null || chosenMode === null) return;
     clearTimeout(nextTimer);
-    questions = makeMultipliers(QUESTION_COUNT[chosenMode]).map(m => ({
-      a: m, b: chosenTable, answer: m * chosenTable
-    }));
+    const count = QUESTION_COUNT[chosenMode];
+    questions = chosenTable === "mix"
+      ? makeMixed(count)
+      : makeMultipliers(count).map(m => ({ a: m, b: chosenTable, answer: m * chosenTable }));
     current = 0;
     score = 0;
     mistakes = [];
-    $("tableLabel").textContent = `${chosenTable} times table`;
+    $("tableLabel").textContent = describe(chosenTable);
     showScreen("quiz");
     showQuestion();
   }
@@ -537,15 +678,27 @@
     locked = false;
     $("counter").textContent = `${current + 1} / ${questions.length}`;
     $("progress").style.width = (current / questions.length * 100) + "%";
-    $("question").innerHTML =
-      `${q.a} <span class="x">×</span> ${q.b} <span class="eq">=</span>`;
-    $("question").style.color = COLOURS[current % COLOURS.length];
-    const input = $("answer");
-    input.value = "";
-    input.className = "answer";
+    const qEl = $("question");
+    qEl.innerHTML =
+      `${fmt(q.a)} <span class="x">×</span> ${fmt(q.b)} <span class="eq">=</span>`;
+    const len = (fmt(q.a) + fmt(q.b)).length;
+    qEl.className = "question" + (len > 12 ? " q-long" : len > 6 ? " q-mid" : "");
+    qEl.style.color = COLOURS[current % COLOURS.length];
+    setAnswerDigits("");
+    $("answer").className = "answer";
     $("feedback").textContent = "";
     $("feedback").className = "feedback";
-    input.focus();
+    $("answer").focus();
+  }
+
+  // The answer box shows commas for big numbers (1,000,000) but only digits are checked
+  const MAX_ANSWER_DIGITS = 15;
+  function answerDigits() { return $("answer").value.replace(/\D/g, ""); }
+  function setAnswerDigits(digits) {
+    digits = digits.replace(/^0+(?=\d)/, "").slice(0, MAX_ANSWER_DIGITS);
+    const input = $("answer");
+    input.value = digits ? Number(digits).toLocaleString("en-GB") : "";
+    input.classList.toggle("a-long", digits.length > 7);
   }
 
   // ---------- Sounds (made with the Web Audio API, no sound files needed) ----------
@@ -607,8 +760,8 @@
   function checkAnswer() {
     if (locked || confirmOpen) return;
     const input = $("answer");
-    const raw = input.value.trim();
-    if (raw === "" || !/^\d+$/.test(raw)) {
+    const raw = answerDigits();
+    if (raw === "") {
       $("feedback").textContent = "Type a number first! 🔢";
       $("feedback").className = "feedback bad";
       input.focus();
@@ -616,7 +769,7 @@
     }
     locked = true;
     const q = questions[current];
-    const given = parseInt(raw, 10);
+    const given = Number(raw);
     if (given === q.answer) {
       score++;
       playCorrect();
@@ -628,9 +781,9 @@
       mistakes.push({ ...q, given });
       playWrong();
       input.classList.add("wrong");
-      $("feedback").textContent = `Oops! ${q.a} × ${q.b} = ${q.answer} 💪`;
+      $("feedback").textContent = `Oops! ${fmt(q.a)} × ${fmt(q.b)} = ${fmt(q.answer)} 💪`;
       $("feedback").className = "feedback bad";
-      nextTimer = setTimeout(next, 2000);
+      nextTimer = setTimeout(next, q.answer >= 10000 ? 3000 : 2000);
     }
   }
 
@@ -644,9 +797,7 @@
   $("answer").addEventListener("keydown", e => {
     if (e.key === "Enter") { e.preventDefault(); checkAnswer(); }
   });
-  $("answer").addEventListener("input", e => {
-    e.target.value = e.target.value.replace(/\D/g, "");
-  });
+  $("answer").addEventListener("input", () => setAnswerDigits(answerDigits()));
 
   // On-screen number pad (great for tablets)
   const keys = ["1","2","3","4","5","6","7","8","9","⌫","0","✔"];
@@ -659,10 +810,9 @@
     else btn.style.background = COLOURS[i % COLOURS.length];
     btn.onclick = () => {
       if (locked || confirmOpen) return;
-      const input = $("answer");
-      if (k === "⌫") input.value = input.value.slice(0, -1);
+      if (k === "⌫") setAnswerDigits(answerDigits().slice(0, -1));
       else if (k === "✔") checkAnswer();
-      else if (input.value.length < 4) input.value += k;
+      else setAnswerDigits(answerDigits() + k);
     };
     $("keypad").appendChild(btn);
   });
@@ -677,10 +827,12 @@
     $("scoreBig").textContent = `${score} / ${total}`;
     if (pct === 1) {
       $("resultTitle").textContent = "PERFECT! 🏆";
-      $("scoreMsg").textContent = `You know your ${chosenTable} times table perfectly!`;
+      $("scoreMsg").textContent = chosenTable === "mix"
+        ? "You aced the mixed challenge!"
+        : `You know your ${fmt(chosenTable)} times table perfectly!`;
     } else if (pct >= 0.7) {
       $("resultTitle").textContent = "Great work! 🎉";
-      $("scoreMsg").textContent = "Nearly there — have another go to get them all!";
+      $("scoreMsg").textContent = "Nearly there. Have another go to get them all!";
     } else {
       $("resultTitle").textContent = "Good try! 🌈";
       $("scoreMsg").textContent = "Practice makes perfect. Let's try again!";
@@ -695,8 +847,8 @@
       review.appendChild(head);
       mistakes.forEach(m => {
         const li = document.createElement("li");
-        li.innerHTML = `${m.a} × ${m.b} = <span class="fix">${m.answer}</span> ` +
-                       `(you said <span class="oops">${m.given}</span>)`;
+        li.innerHTML = `${fmt(m.a)} × ${fmt(m.b)} = <span class="fix">${fmt(m.answer)}</span> ` +
+                       `(you said <span class="oops">${fmt(m.given)}</span>)`;
         review.appendChild(li);
       });
     }
@@ -713,15 +865,18 @@
     if (pct >= 0.7) confetti();
   }
 
-  // ---------- Today's champion ----------
-  // On the shared web page, scores go to a shared score board so everyone sees the same champion.
+  // ---------- Scores: today's champion and the Top 10 ----------
+  // On the shared web page, scores go to a shared score board so everyone sees the same results.
   // Opened as a plain file, scores are kept in this browser instead.
   const LOCAL_KEY = "ttf-scores";
+  const LOCAL_RESET_KEY = "ttf-champ-reset";
   let sharedDb = null;
   let sharedChecking = !!(window.claude && typeof window.claude.use === "function");
-  let sharedScores = [];
+  let sharedToday = [];        // today's shared scores
+  let sharedTop = [];          // best shared scores of all time
+  let sharedResetAt = 0;       // when today's champion was last reset (shared)
   let localScores = [];
-  let unsubscribe = null;
+  let unsubToday = null, unsubReset = null;
   let subscribedDay = null;
 
   function todayKey() {
@@ -731,10 +886,16 @@
   }
 
   function isValidEntry(s) {
-    return s && typeof s.initials === "string" && /^[A-Z]{1,3}$/.test(s.initials) &&
-      Number.isInteger(s.score) && s.score >= 1 &&
-      [5, 10, 20].includes(s.total) && s.score <= s.total && Number.isInteger(s.table) &&
-      s.table >= 1 && s.table <= 12 && s.day === todayKey();
+    if (!s || typeof s.initials !== "string" || !/^[A-Z]{1,3}$/.test(s.initials)) return false;
+    if (!Number.isInteger(s.score) || s.score < 1 || ![5, 10, 20].includes(s.total) || s.score > s.total) return false;
+    if (typeof s.day !== "string") return false;
+    return s.table === "mix" || (Number.isInteger(s.table) && s.table >= 1 && s.table <= MAX_OWN);
+  }
+
+  // Ranking: most right answers first; then fewer questions (a better score);
+  // then whoever got there first.
+  function rankCmp(a, b) {
+    return (b.score - a.score) || (a.total - b.total) || ((a.at || 0) - (b.at || 0));
   }
 
   function readLocal() {
@@ -746,27 +907,53 @@
 
   function writeLocal(entry) {
     try {
-      const keep = readLocal();   // only today's scores are kept
+      let keep = readLocal();
       keep.push(entry);
+      // Keep today's scores and the best 100 of all time
+      const today = todayKey();
+      const best = keep.slice().sort(rankCmp).slice(0, 100);
+      keep = keep.filter(s => s.day === today || best.includes(s));
       localStorage.setItem(LOCAL_KEY, JSON.stringify(keep));
       return true;
     } catch (e) { return false; }
   }
 
-  // Highest score wins; on a tie, whoever got there first keeps the crown.
-  function bestOf(list) {
-    return list.filter(isValidEntry)
-      .sort((a, b) => (b.score - a.score) || ((a.at || 0) - (b.at || 0)))[0] || null;
+  function localResetAt() {
+    try {
+      const r = JSON.parse(localStorage.getItem(LOCAL_RESET_KEY) || "null");
+      return r && r.day === todayKey() && Number.isFinite(r.at) ? r.at : 0;
+    } catch (e) { return 0; }
   }
-  function currentBest() { return bestOf(sharedScores.concat(localScores)); }
+
+  function currentBest() {
+    const day = todayKey();
+    const resetAt = Math.max(sharedResetAt, localResetAt());
+    const list = sharedToday.concat(localScores)
+      .filter(s => isValidEntry(s) && s.day === day && (s.at || 0) > resetAt);
+    return list.sort(rankCmp)[0] || null;
+  }
+
+  function topTen() {
+    const seen = new Set();
+    return sharedTop.concat(sharedToday, localScores)
+      .filter(isValidEntry)
+      .filter(s => {                       // the same score can arrive from two lists
+        const key = s.initials + "|" + s.at + "|" + s.score;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort(rankCmp).slice(0, 10);
+  }
 
   function renderChampion() {
     const best = currentBest();
     $("champReset").hidden = !best;
     if (best) {
       $("champName").textContent = `${best.initials}: ${best.score} right!`;
+      const mode = MODE_NAMES[best.mode] ? `, ${MODE_NAMES[best.mode]} mode` : "";
       $("champDetail").textContent =
-        `${best.table} times table, ${best.mode === "hard" ? "Hard" : "Easy"} mode (${best.score} out of ${best.total})`;
+        `${describe(best.table)}${mode} (${best.score} out of ${best.total})`;
     } else if (sharedChecking) {
       $("champName").textContent = "Checking…";
       $("champDetail").textContent = "Looking up today's best score.";
@@ -774,7 +961,43 @@
       $("champName").textContent = "No champion yet!";
       $("champDetail").textContent = "Get a question right to claim the crown.";
     }
+    if ($("board").classList.contains("active")) renderBoard();
   }
+
+  function renderBoard() {
+    const list = topTen();
+    const ol = $("boardList");
+    ol.innerHTML = "";
+    const medals = ["🥇", "🥈", "🥉"];
+    list.forEach((s, i) => {
+      const li = document.createElement("li");
+      const rank = document.createElement("span");
+      rank.className = "rank";
+      rank.textContent = medals[i] || String(i + 1);
+      const who = document.createElement("div");
+      who.className = "who";
+      const name = document.createElement("div");
+      name.className = "name";
+      name.textContent = s.initials;
+      const what = document.createElement("div");
+      what.className = "what";
+      const mode = MODE_NAMES[s.mode] ? ` · ${MODE_NAMES[s.mode]}` : "";
+      what.textContent = `${describe(s.table)}${mode}`;
+      who.append(name, what);
+      const pts = document.createElement("span");
+      pts.className = "pts";
+      pts.textContent = `${s.score}/${s.total}`;
+      li.append(rank, who, pts);
+      ol.appendChild(li);
+    });
+    $("boardEmpty").hidden = list.length > 0;
+    if (!list.length && sharedChecking) $("boardEmpty").textContent = "Loading the scores…";
+    else $("boardEmpty").textContent = "No scores yet! Play a game and save your initials to get on the board.";
+  }
+
+  $("boardBtn").onclick = () => { renderBoard(); showScreen("board"); };
+  $("quitBoardBtn").onclick = quitToStart;
+  $("boardPlayBtn").onclick = quitToStart;
 
   function refreshChampion() {
     localScores = readLocal();
@@ -782,30 +1005,46 @@
     renderChampion();
   }
 
+  function sharedFailed() {
+    sharedDb = null; sharedChecking = false; subscribedDay = null;
+    renderChampion();
+  }
+
   function subscribeToday() {
     const day = todayKey();
-    if (unsubscribe) unsubscribe();
+    if (unsubToday) unsubToday();
+    if (unsubReset) unsubReset();
     subscribedDay = day;
-    sharedScores = [];
+    sharedToday = [];
+    sharedResetAt = 0;
     sharedChecking = true;
     const timer = setTimeout(() => { sharedChecking = false; renderChampion(); }, 10000);
-    unsubscribe = sharedDb.collection("scores")
-      .where("day", "==", day).orderBy("score", "desc").limit(50)
+    unsubToday = sharedDb.collection("scores")
+      .where("day", "==", day).orderBy("score", "desc").limit(200)
       .onSnapshot(snap => {
         if (!snap.metadata.fromCache) { clearTimeout(timer); sharedChecking = false; }
-        sharedScores = snap.docs.map(d => d.data());
+        sharedToday = snap.docs.map(d => d.data());
         renderChampion();
-      }, () => {
-        clearTimeout(timer);
-        sharedDb = null; sharedChecking = false; subscribedDay = null;
+      }, () => { clearTimeout(timer); sharedFailed(); });
+    unsubReset = sharedDb.doc("resets/" + day).onSnapshot(snap => {
+      const at = snap.exists ? snap.data().at : 0;
+      sharedResetAt = Number.isFinite(at) ? at : 0;
+      renderChampion();
+    }, () => {});
+  }
+
+  function subscribeTop() {
+    sharedDb.collection("scores").orderBy("score", "desc").limit(300)
+      .onSnapshot(snap => {
+        sharedTop = snap.docs.map(d => d.data());
         renderChampion();
-      });
+      }, () => {});
   }
 
   async function connectScoreBoard() {
     if (!sharedChecking) return;
     try { sharedDb = await window.claude.use("db"); } catch (e) { sharedDb = null; }
-    if (sharedDb) subscribeToday();
+    if (sharedDb) { subscribeToday(); subscribeTop(); }
     else { sharedChecking = false; renderChampion(); }
   }
 
@@ -844,17 +1083,22 @@
       return;
     }
 
-    $("saveMsg").textContent = (!before || entry.score > before.score)
-      ? "👑 Saved! You're today's champion!"
-      : `Saved! Today's best is ${before.score}. Can you beat it?`;
+    // Where does this score come on the Top 10?
+    const better = topTen().filter(s => !(s.at === entry.at && s.initials === entry.initials))
+      .filter(s => rankCmp(s, entry) < 0).length;
+    const rankMsg = better < 10 ? ` You're number ${better + 1} on the Top 10!` : "";
+    $("saveMsg").textContent = (!before || rankCmp(entry, before) < 0)
+      ? `👑 Saved! You're today's champion!${rankMsg}`
+      : `Saved! Today's best is ${before.score}. Can you beat it?${rankMsg}`;
     $("saveBtn").textContent = "Saved ✔";
     renderChampion();
   });
 
-  // Reset today's champion (with an "Are you sure?" step)
+  // Reset today's champion (with an "Are you sure?" step).
+  // The Top 10 keeps all its scores.
   function askResetChampion() {
     $("confirmTitle").textContent = "Reset today's champion?";
-    $("confirmText").textContent = "This clears all of today's scores, so the champion box goes back to blank.";
+    $("confirmText").textContent = "The champion box goes back to blank. The Top 10 leaderboard keeps its scores.";
     $("keepGoingBtn").textContent = "No, keep it";
     $("yesQuitBtn").textContent = "Yes, reset";
     onConfirmYes = resetChampion;
@@ -865,17 +1109,13 @@
 
   async function resetChampion() {
     const day = todayKey();
+    const at = Date.now();
     $("champReset").disabled = true;
-    try { localStorage.setItem(LOCAL_KEY, "[]"); } catch (e) {}
-    localScores = [];
+    try { localStorage.setItem(LOCAL_RESET_KEY, JSON.stringify({ day, at })); } catch (e) {}
     let failed = false;
     if (sharedDb) {
-      try {
-        const scores = sharedDb.collection("scores");
-        const snap = await scores.where("day", "==", day).limit(1000).get();
-        for (const d of snap.docs) await scores.doc(d.id).delete();
-        sharedScores = [];
-      } catch (err) { failed = true; }
+      try { await sharedDb.doc("resets/" + day).set({ at }); sharedResetAt = at; }
+      catch (err) { failed = true; }
     }
     $("champReset").disabled = false;
     renderChampion();
