@@ -469,6 +469,11 @@
   </div>
 </div>
 
+<!-- Shared leaderboard: Firebase, Google's free online database. Its settings are in firebase-config.js -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+
 <script>
   // ---------- Settings ----------
   const MIN_TABLE = 1;
@@ -1012,8 +1017,19 @@
   // Opened as a plain file, scores are kept in this browser instead.
   const LOCAL_KEY = "ttf-scores";
   const LOCAL_RESET_KEY = "ttf-champ-reset";
+  // Connect to the shared Firebase database. Without settings in firebase-config.js
+  // (or with no internet), scores are kept in this browser instead.
+  function openFirebase() {
+    try {
+      const cfg = window.FIREBASE_CONFIG;
+      if (!window.firebase || !cfg || !cfg.projectId || !cfg.apiKey || /PASTE/i.test(cfg.apiKey)) return null;
+      if (!firebase.apps.length) firebase.initializeApp(cfg);
+      return firebase.firestore();
+    } catch (e) { return null; }
+  }
+  const firestore = openFirebase();
   let sharedDb = null;
-  let sharedChecking = !!(window.claude && typeof window.claude.use === "function");
+  let sharedChecking = !!firestore;
   let sharedToday = [];        // today's shared scores
   let sharedTop = [];          // best shared scores of all time
   let sharedResetAt = 0;       // when today's champion was last reset (shared)
@@ -1228,7 +1244,7 @@
     sharedChecking = true;
     const timer = setTimeout(() => { sharedChecking = false; renderChampion(); }, 10000);
     unsubToday = sharedDb.collection("scores")
-      .where("day", "==", day).orderBy("score", "desc").limit(200)
+      .where("day", "==", day).limit(500)
       .onSnapshot(snap => {
         if (!snap.metadata.fromCache) { clearTimeout(timer); sharedChecking = false; }
         sharedToday = snap.docs.map(d => d.data());
@@ -1249,11 +1265,11 @@
       }, () => {});
   }
 
-  async function connectScoreBoard() {
-    if (!sharedChecking) return;
-    try { sharedDb = await window.claude.use("db"); } catch (e) { sharedDb = null; }
-    if (sharedDb) { subscribeToday(); subscribeTop(); }
-    else { sharedChecking = false; renderChampion(); }
+  function connectScoreBoard() {
+    if (!firestore) { sharedChecking = false; renderChampion(); return; }
+    sharedDb = firestore;
+    subscribeToday();
+    subscribeTop();
   }
 
   $("initials").addEventListener("input", e => {
@@ -1277,7 +1293,9 @@
 
     let saved = false;
     if (sharedDb) {
-      try { await sharedDb.collection("scores").add(entry); saved = true; }
+      // Give up after 8 seconds (for example with no internet) and keep the score in this browser
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000));
+      try { await Promise.race([sharedDb.collection("scores").add(entry), timeout]); saved = true; }
       catch (err) { saved = false; }
     }
     if (!saved) {
@@ -1340,9 +1358,8 @@
   connectScoreBoard();
 
   // ---------- "Used" counter ----------
-  // On the web page, everyone's visits are added up live. Each person keeps their own
-  // visit count, so visits from different people never overwrite each other.
-  // Opened as a plain file, it counts visits in this browser.
+  // With the shared database, one counter goes up by one each time anyone opens the game.
+  // Without it, the counter counts visits in this browser.
   const USED_KEY = "ttf-used";
   let usedShownOnce = false;
   function showUsed(n) {
@@ -1360,34 +1377,17 @@
       return n;
     } catch (e) { return NaN; }
   }
-  async function startUsedCounter() {
-    if (!window.claude || typeof window.claude.use !== "function") { showUsed(countLocalVisit()); return; }
-    let db = null, user = null;
-    try { [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]); } catch (e) {}
-    if (!db) { showUsed(countLocalVisit()); return; }
-
-    // Live total: add up everyone's visit counts
+  function startUsedCounter() {
+    if (!firestore) { showUsed(countLocalVisit()); return; }
+    const ref = firestore.doc("counters/opens");
     const timer = setTimeout(() => { if ($("usedCount").textContent === "…") showUsed(NaN); }, 10000);
-    db.collection("opens").limit(1000).onSnapshot(snap => {
+    ref.onSnapshot(snap => {
       clearTimeout(timer);
-      let total = 0;
-      snap.docs.forEach(d => {
-        const c = d.data().count;
-        if (Number.isInteger(c) && c > 0) total += c;
-      });
-      showUsed(total);
+      const c = snap.exists ? snap.data().count : 0;
+      showUsed(Number.isInteger(c) ? c : NaN);
     }, () => { clearTimeout(timer); showUsed(NaN); });
-
-    // Count this visit
-    try {
-      const uid = user ? await user.id() : null;
-      if (uid) {
-        const ref = db.doc("opens/" + uid);
-        const mine = await ref.get();
-        const prev = mine.exists && Number.isInteger(mine.data().count) ? mine.data().count : 0;
-        await ref.set({ count: prev + 1 });
-      }
-    } catch (e) { /* this viewer can't add to the count; the total still shows */ }
+    // Count this visit (the database adds exactly one, even if many people open it at once)
+    ref.set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(() => {});
   }
   startUsedCounter();
 
