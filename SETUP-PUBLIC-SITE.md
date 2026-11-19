@@ -70,6 +70,16 @@ Share that link. Everyone who opens it shares the same leaderboard.
 
 If the website address ever changes, the QR code, poster and link preview need making again.
 
+## Class or family codes
+
+- On the home screen, **🏫 Class or family code** opens the group box.
+- A teacher or parent taps **✨ Make a new code** and gets a 6-character code such as `KTR4X8`
+  (no vowels, so codes can't spell words, and no look-alike characters such as 0/O or 1/I).
+- Children tap the same button on their own device and type the code. The device remembers it.
+- The Top 10 then has **🌍 Everyone** and **👥 KTR4X8** buttons. Group scores still count on the
+  Everyone leaderboard too.
+- Codes aren't passwords: anyone who knows a code can see that group's scores and join it.
+
 ## Looking after the leaderboard
 
 - **Remove a score** (for example, rude initials or a test score): in Firebase, open

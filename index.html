@@ -282,6 +282,36 @@
   .top-btns { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 0 0 12px; }
   .top-btns .board-btn { margin: 0; }
   .board-btn.share-btn { background: #d9f7ff; }
+  .board-btn.group-btn { background: #dff7e6; }
+
+  /* Class or family group */
+  .group-card { max-width: 400px; }
+  .group-card p { margin: 0 0 12px; }
+  .group-code {
+    display: inline-block; font-size: 2.2rem; font-weight: 800; letter-spacing: .18em;
+    padding: 4px 18px; margin: 4px 0 6px; border-radius: 16px;
+    background: var(--yellow); color: var(--ink); font-variant-numeric: tabular-nums;
+  }
+  .group-row { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; }
+  .group-input {
+    font-family: inherit; font-size: 1.6rem; font-weight: 800; width: 170px; text-align: center;
+    text-transform: uppercase; letter-spacing: .12em; padding: 2px 8px;
+    border: 4px solid var(--purple); border-radius: 14px; color: var(--ink); background: #fff;
+  }
+  .group-input:focus { outline: none; box-shadow: 0 0 0 5px rgba(131,56,236,.25); }
+  .group-card .big-btn { margin-top: 0; padding: 8px 18px; font-size: 1.1rem; }
+  .group-or { font-weight: 800; color: var(--purple); margin: 12px 0 8px; }
+  .group-msg { min-height: 1.3em; font-weight: 800; color: var(--red); margin-top: 6px; }
+  .group-part[hidden] { display: none; }
+  .board-scope { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 2px; }
+  .board-scope[hidden] { display: none; }
+  .scope-btn {
+    font-family: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer;
+    padding: 5px 14px; border-radius: 12px; border: 3px solid var(--green);
+    background: #fff; color: #138a7f;
+  }
+  .scope-btn.on { background: var(--green); color: #fff; }
+  .scope-btn:focus-visible { outline: 4px solid var(--blue); outline-offset: 2px; }
 
   /* Share box */
   .share-card { max-width: 380px; border-color: var(--blue); }
@@ -422,6 +452,7 @@
     <div class="top-btns">
       <button class="board-btn" id="boardBtn" type="button">🏅 Top 10 Leaderboard</button>
       <button class="board-btn share-btn" id="shareBtn" type="button">📱 Share</button>
+      <button class="board-btn group-btn" id="groupBtn" type="button">🏫 Class or family code</button>
     </div>
 
     <p class="sub">Which times table would you most like to practice?</p>
@@ -500,6 +531,10 @@
       <button class="quit-btn" id="quitBoardBtn" type="button">✖ Quit</button>
     </div>
     <h1>🏅 Top 10 🏅</h1>
+    <div class="board-scope" id="boardScope" hidden>
+      <button class="scope-btn" type="button" data-scope="all">🌍 Everyone</button>
+      <button class="scope-btn" type="button" data-scope="group" id="scopeGroupBtn">👥 My group</button>
+    </div>
     <div class="board-tabs" role="tablist" aria-label="Which leaderboard">
       <button class="tab-btn" type="button" role="tab" data-period="week">This week</button>
       <button class="tab-btn" type="button" role="tab" data-period="month">This month</button>
@@ -518,6 +553,37 @@
 <div class="used" id="used" aria-live="polite">
   <span class="used-label">Used</span>
   <span class="used-count" id="usedCount">…</span>
+</div>
+
+<div class="confirm" id="groupBox" role="dialog" aria-modal="true" aria-labelledby="groupTitle" hidden>
+  <div class="confirm-card group-card">
+    <h2 id="groupTitle">🏫 Class or family code</h2>
+    <p>A code gives your class or family its own Top 10 leaderboard. Scores still count on the main leaderboard too.</p>
+
+    <div class="group-part" id="groupIn" hidden>
+      <p>This device is in group</p>
+      <div class="group-code" id="groupCodeShow">ABC123</div>
+      <p>Give this code to your class or family. They tap <strong>🏫 Class or family code</strong> and type it in.</p>
+      <div class="group-row">
+        <button class="big-btn" id="leaveGroupBtn" type="button" style="background: var(--red)">Leave group</button>
+        <button class="big-btn keep-going" id="closeGroupBtn2" type="button">Done</button>
+      </div>
+    </div>
+
+    <div class="group-part" id="groupOut">
+      <label for="groupInput"><strong>Got a code? Type it here:</strong></label>
+      <div class="group-row" style="margin-top: 6px">
+        <input class="group-input" id="groupInput" type="text" maxlength="8" autocomplete="off" placeholder="CODE">
+        <button class="big-btn" id="joinGroupBtn" type="button">Join</button>
+      </div>
+      <div class="group-msg" id="groupMsg" aria-live="polite"></div>
+      <div class="group-or">or, for a teacher or parent:</div>
+      <div class="group-row">
+        <button class="big-btn" id="newGroupBtn" type="button" style="background: var(--purple)">✨ Make a new code</button>
+        <button class="big-btn keep-going" id="closeGroupBtn" type="button">Close</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="confirm" id="shareBox" role="dialog" aria-modal="true" aria-labelledby="shareTitle" hidden>
@@ -1120,6 +1186,8 @@
   let sharedToday = [];        // today's shared scores
   let sharedTop = [];          // best shared scores of all time
   let sharedRecent = [];       // shared scores from this week and this month
+  let groupCode = null;        // this device's class or family code
+  try { const g = localStorage.getItem("ttf-group"); if (g && /^[A-Z0-9]{4,8}$/.test(g)) groupCode = g; } catch (e) {}
   let unsubRecent = null;
   let sharedResetAt = 0;       // when today's champion was last reset (shared)
   let localScores = [];
@@ -1151,6 +1219,7 @@
     if (typeof s.day !== "string") return false;
     if (s.quick !== undefined && typeof s.quick !== "boolean") return false;
     if (s.ms !== undefined && !(Number.isInteger(s.ms) && s.ms >= 0 && s.ms < 86400000)) return false;
+    if (s.group !== undefined && !(typeof s.group === "string" && /^[A-Z0-9]{4,8}$/.test(s.group))) return false;
     return s.table === "mix" || (Number.isInteger(s.table) && s.table >= 1 && s.table <= MAX_OWN);
   }
 
@@ -1208,12 +1277,15 @@
     return list.sort(rankCmp)[0] || null;
   }
 
-  // Every known score for a period, best first ("week", "month" or "all")
-  function ranked(period) {
+  // Every known score for a period, best first ("week", "month" or "all").
+  // scope "group" keeps only this device's class or family group.
+  function ranked(period, scope) {
     const seen = new Set();
-    return sharedTop.concat(sharedRecent, sharedToday, localScores)
+    const inGroup = scope === "group" && groupCode;
+    return sharedTop.concat(sharedRecent, sharedToday, sharedGroup, localScores)
       .filter(isValidEntry)
       .filter(s => inPeriod(s, period))
+      .filter(s => !inGroup || s.group === groupCode)
       .filter(s => {                       // the same score can arrive from two lists
         const key = s.initials + "|" + s.at + "|" + s.score;
         if (seen.has(key)) return false;
@@ -1222,10 +1294,10 @@
       })
       .sort(rankCmp);
   }
-  function topTen(period) { return ranked(period).slice(0, 10); }
+  function topTen(period, scope) { return ranked(period, scope).slice(0, 10); }
   // Where a score comes in a period (1 = first)
-  function placeOf(entry, period) {
-    return 1 + ranked(period).filter(s => !(s.at === entry.at && s.initials === entry.initials))
+  function placeOf(entry, period, scope) {
+    return 1 + ranked(period, scope).filter(s => !(s.at === entry.at && s.initials === entry.initials))
       .filter(s => rankCmp(s, entry) < 0).length;
   }
 
@@ -1240,12 +1312,25 @@
       b.classList.toggle("on", on);
       b.setAttribute("aria-selected", on ? "true" : "false");
     });
+    const where = boardScope === "group" && groupCode ? ` in group ${groupCode}` : "";
     $("boardSub").textContent =
-      period === "week" ? "The best scores this week (since Monday)!" :
-      period === "month" ? `The best scores in ${MONTHS[new Date().getMonth()]}!` :
-      "The best scores of all time!";
+      period === "week" ? `The best scores${where} this week (since Monday)!` :
+      period === "month" ? `The best scores${where} in ${MONTHS[new Date().getMonth()]}!` :
+      `The best scores${where} of all time!`;
     renderBoard();
   }
+
+  // Everyone, or just this device's class or family group
+  let boardScope = "all";
+  function setBoardScope(scope) {
+    boardScope = groupCode ? scope : "all";
+    $("boardScope").hidden = !groupCode;
+    $("scopeGroupBtn").textContent = groupCode ? `👥 ${groupCode}` : "👥 My group";
+    document.querySelectorAll(".scope-btn").forEach(b => b.classList.toggle("on", b.dataset.scope === boardScope));
+  }
+  document.querySelectorAll(".scope-btn").forEach(b => {
+    b.onclick = () => { setBoardScope(b.dataset.scope); setBoardPeriod(boardPeriod); };
+  });
   document.querySelectorAll(".tab-btn").forEach(b => { b.onclick = () => setBoardPeriod(b.dataset.period); });
 
   function renderChampion() {
@@ -1269,7 +1354,7 @@
   }
 
   function renderBoard() {
-    const list = topTen(boardPeriod);
+    const list = topTen(boardPeriod, boardScope);
     const ol = $("boardList");
     ol.innerHTML = "";
     const medals = ["🥇", "🥈", "🥉"];
@@ -1348,11 +1433,17 @@
       if (left <= 0) quitToStart();
       else tick();
     }, 1000);
+    setBoardScope(groupCode ? "group" : "all");
     setBoardPeriod("week");
     showScreen("board");
   }
 
-  $("boardBtn").onclick = () => { stopBoardTimer(); setBoardPeriod("week"); showScreen("board"); };
+  $("boardBtn").onclick = () => {
+    stopBoardTimer();
+    setBoardScope(groupCode ? "group" : "all");
+    setBoardPeriod("week");
+    showScreen("board");
+  };
   $("quitBoardBtn").onclick = quitToStart;
   $("boardPlayBtn").onclick = quitToStart;
 
@@ -1406,12 +1497,79 @@
       }, () => {});
   }
 
+  // Scores from this device's class or family group
+  let sharedGroup = [], unsubGroup = null;
+  function subscribeGroup() {
+    if (unsubGroup) { unsubGroup(); unsubGroup = null; }
+    sharedGroup = [];
+    if (!sharedDb || !groupCode) return;
+    unsubGroup = sharedDb.collection("scores").where("group", "==", groupCode).limit(1000)
+      .onSnapshot(snap => {
+        sharedGroup = snap.docs.map(d => d.data());
+        renderChampion();
+      }, () => {});
+  }
+
   function connectScoreBoard() {
     if (!firestore) { sharedChecking = false; renderChampion(); return; }
     sharedDb = firestore;
     subscribeToday();
     subscribeTop();
+    subscribeGroup();
   }
+
+  // ---------- Class or family code ----------
+  // Codes are 4 to 8 letters and numbers. New codes use no vowels (so they can't spell words)
+  // and no look-alike characters (0/O, 1/I/L).
+  const GROUP_KEY = "ttf-group";
+  const CODE_CHARS = "BCDFGHJKMNPQRSTVWXYZ23456789";
+  function newGroupCode() {
+    const r = new Uint32Array(6);
+    crypto.getRandomValues(r);
+    return Array.from(r, x => CODE_CHARS[x % CODE_CHARS.length]).join("");
+  }
+  function setGroup(code) {
+    groupCode = code || null;
+    try {
+      if (groupCode) localStorage.setItem(GROUP_KEY, groupCode);
+      else localStorage.removeItem(GROUP_KEY);
+    } catch (e) {}
+    $("groupBtn").textContent = groupCode ? `👥 Group: ${groupCode}` : "🏫 Class or family code";
+    subscribeGroup();
+    renderChampion();
+  }
+  function showGroupBox() {
+    $("groupIn").hidden = !groupCode;
+    $("groupOut").hidden = !!groupCode;
+    $("groupCodeShow").textContent = groupCode || "";
+    $("groupMsg").textContent = "";
+    $("groupInput").value = "";
+    $("groupBox").hidden = false;
+    (groupCode ? $("closeGroupBtn2") : $("groupInput")).focus();
+  }
+  function closeGroupBox() { $("groupBox").hidden = true; $("groupBtn").focus(); }
+  $("groupBtn").onclick = showGroupBox;
+  $("closeGroupBtn").onclick = closeGroupBox;
+  $("closeGroupBtn2").onclick = closeGroupBox;
+  $("groupBox").addEventListener("click", e => { if (e.target === $("groupBox")) closeGroupBox(); });
+  document.addEventListener("keydown", e => { if (!$("groupBox").hidden && e.key === "Escape") closeGroupBox(); });
+  $("groupInput").addEventListener("input", e => {
+    e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+  });
+  function joinTypedCode() {
+    const code = $("groupInput").value;
+    if (code.length < 4) {
+      $("groupMsg").textContent = "Codes have 4 to 8 letters or numbers.";
+      $("groupInput").focus();
+      return;
+    }
+    setGroup(code);
+    showGroupBox();
+  }
+  $("joinGroupBtn").onclick = joinTypedCode;
+  $("groupInput").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); joinTypedCode(); } });
+  $("newGroupBtn").onclick = () => { setGroup(newGroupCode()); showGroupBox(); };
+  $("leaveGroupBtn").onclick = () => { setGroup(null); showGroupBox(); };
 
   $("initials").addEventListener("input", e => {
     e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3);
@@ -1432,6 +1590,7 @@
     }
     const entry = { initials, score, total: questions.length, table: chosenTable,
                     mode: chosenMode, quick: gameQuick, ms: elapsedMs, day: todayKey(), at: Date.now() };
+    if (groupCode) entry.group = groupCode;
     const before = currentBest();
     $("saveBtn").disabled = true;
     $("initials").disabled = true;
@@ -1456,10 +1615,12 @@
     }
 
     // Where does this score come this week and of all time?
-    const week = placeOf(entry, "week"), all = placeOf(entry, "all");
+    const scope = groupCode ? "group" : "all";
+    const week = placeOf(entry, "week", scope), all = placeOf(entry, "all", scope);
+    const inWhat = groupCode ? ` in group ${groupCode}` : "";
     const rankMsg =
-      week <= 10 && all <= 10 ? ` You're number ${week} this week and number ${all} of all time!` :
-      week <= 10 ? ` You're number ${week} on this week's Top 10!` : "";
+      week <= 10 && all <= 10 ? ` You're number ${week} this week and number ${all} of all time${inWhat}!` :
+      week <= 10 ? ` You're number ${week} this week${inWhat}!` : "";
     const message = (!before || rankCmp(entry, before) < 0)
       ? `👑 Saved! You're today's champion!${rankMsg}`
       : `Saved! Today's best is ${before.score}. Can you beat it?${rankMsg}`;
@@ -1503,6 +1664,7 @@
 
   refreshChampion();
   connectScoreBoard();
+  if (groupCode) $("groupBtn").textContent = `👥 Group: ${groupCode}`;
 
   // ---------- "Used" counter ----------
   // With the shared database, one counter goes up by one each time anyone opens the game.
