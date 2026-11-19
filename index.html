@@ -311,6 +311,14 @@
   .board .who { min-width: 0; overflow-wrap: anywhere; }
   .board .name { font-size: 1.4rem; font-weight: 800; line-height: 1.1; letter-spacing: .05em; }
   .board .what { font-size: .95rem; }
+  .board-tabs { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 6px 0 4px; }
+  .tab-btn {
+    font-family: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer;
+    padding: 6px 16px; border-radius: 999px; border: 3px solid var(--purple);
+    background: #fff; color: var(--purple);
+  }
+  .tab-btn.on { background: var(--purple); color: #fff; }
+  .tab-btn:focus-visible { outline: 4px solid var(--blue); outline-offset: 2px; }
   .board-empty { font-size: 1.15rem; font-weight: 700; margin: 16px 0 0; }
   .board li.me { outline: 4px solid var(--purple); outline-offset: 2px; }
   .board .you { display: inline-block; margin-left: 6px; font-size: .85rem; letter-spacing: 0;
@@ -386,6 +394,8 @@
     .tables { gap: 8px; }
     .mode-btn { font-size: 1.05rem; }
     .special-btn { font-size: 1.1rem; }
+    .board-tabs { gap: 6px; }
+    .tab-btn { font-size: .92rem; padding: 4px 10px; }
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -490,7 +500,12 @@
       <button class="quit-btn" id="quitBoardBtn" type="button">✖ Quit</button>
     </div>
     <h1>🏅 Top 10 🏅</h1>
-    <p class="sub">The best scores of all time!</p>
+    <div class="board-tabs" role="tablist" aria-label="Which leaderboard">
+      <button class="tab-btn" type="button" role="tab" data-period="week">This week</button>
+      <button class="tab-btn" type="button" role="tab" data-period="month">This month</button>
+      <button class="tab-btn" type="button" role="tab" data-period="all">All time</button>
+    </div>
+    <p class="sub" id="boardSub">The best scores this week!</p>
     <p class="board-msg" id="boardMsg" aria-live="polite" hidden></p>
     <ol class="board" id="boardList"></ol>
     <p class="board-empty" id="boardEmpty" hidden>No scores yet! Play a game and save your initials to get on the board.</p>
@@ -1104,15 +1119,29 @@
   let sharedChecking = !!firestore;
   let sharedToday = [];        // today's shared scores
   let sharedTop = [];          // best shared scores of all time
+  let sharedRecent = [];       // shared scores from this week and this month
+  let unsubRecent = null;
   let sharedResetAt = 0;       // when today's champion was last reset (shared)
   let localScores = [];
   let unsubToday = null, unsubReset = null;
   let subscribedDay = null;
 
-  function todayKey() {
-    const d = new Date();
+  function dateKey(d) {
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" +
            String(d.getDate()).padStart(2, "0");
+  }
+  function todayKey() { return dateKey(new Date()); }
+  // Weeks start on Monday
+  function weekStartKey() {
+    const d = new Date();
+    d.setDate(d.getDate() - (d.getDay() + 6) % 7);
+    return dateKey(d);
+  }
+  function monthStartKey() { return todayKey().slice(0, 8) + "01"; }
+  function inPeriod(s, period) {
+    if (period === "week") return s.day >= weekStartKey() && s.day <= todayKey();
+    if (period === "month") return s.day.slice(0, 7) === todayKey().slice(0, 7);
+    return true;
   }
 
   function isValidEntry(s) {
@@ -1154,10 +1183,11 @@
     try {
       let keep = readLocal();
       keep.push(entry);
-      // Keep today's scores and the best 100 of all time
-      const today = todayKey();
+      // Keep the last 40 days of scores (for this week and this month) and the best 100 of all time
+      const since = new Date(); since.setDate(since.getDate() - 40);
+      const recent = dateKey(since);
       const best = keep.slice().sort(rankCmp).slice(0, 100);
-      keep = keep.filter(s => s.day === today || best.includes(s));
+      keep = keep.filter(s => s.day >= recent || best.includes(s));
       localStorage.setItem(LOCAL_KEY, JSON.stringify(keep));
       return true;
     } catch (e) { return false; }
@@ -1178,18 +1208,45 @@
     return list.sort(rankCmp)[0] || null;
   }
 
-  function topTen() {
+  // Every known score for a period, best first ("week", "month" or "all")
+  function ranked(period) {
     const seen = new Set();
-    return sharedTop.concat(sharedToday, localScores)
+    return sharedTop.concat(sharedRecent, sharedToday, localScores)
       .filter(isValidEntry)
+      .filter(s => inPeriod(s, period))
       .filter(s => {                       // the same score can arrive from two lists
         const key = s.initials + "|" + s.at + "|" + s.score;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
       })
-      .sort(rankCmp).slice(0, 10);
+      .sort(rankCmp);
   }
+  function topTen(period) { return ranked(period).slice(0, 10); }
+  // Where a score comes in a period (1 = first)
+  function placeOf(entry, period) {
+    return 1 + ranked(period).filter(s => !(s.at === entry.at && s.initials === entry.initials))
+      .filter(s => rankCmp(s, entry) < 0).length;
+  }
+
+  // Which leaderboard is showing
+  const MONTHS = ["January", "February", "March", "April", "May", "June", "July",
+                  "August", "September", "October", "November", "December"];
+  let boardPeriod = "week";
+  function setBoardPeriod(period) {
+    boardPeriod = period;
+    document.querySelectorAll(".tab-btn").forEach(b => {
+      const on = b.dataset.period === period;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    $("boardSub").textContent =
+      period === "week" ? "The best scores this week (since Monday)!" :
+      period === "month" ? `The best scores in ${MONTHS[new Date().getMonth()]}!` :
+      "The best scores of all time!";
+    renderBoard();
+  }
+  document.querySelectorAll(".tab-btn").forEach(b => { b.onclick = () => setBoardPeriod(b.dataset.period); });
 
   function renderChampion() {
     const best = currentBest();
@@ -1212,7 +1269,7 @@
   }
 
   function renderBoard() {
-    const list = topTen();
+    const list = topTen(boardPeriod);
     const ol = $("boardList");
     ol.innerHTML = "";
     const medals = ["🥇", "🥈", "🥉"];
@@ -1258,7 +1315,10 @@
     });
     $("boardEmpty").hidden = list.length > 0;
     if (!list.length && sharedChecking) $("boardEmpty").textContent = "Loading the scores…";
-    else $("boardEmpty").textContent = "No scores yet! Play a game and save your initials to get on the board.";
+    else $("boardEmpty").textContent =
+      boardPeriod === "week" ? "No scores this week yet! Play a game to be the first on the board." :
+      boardPeriod === "month" ? "No scores this month yet! Play a game to be the first on the board." :
+      "No scores yet! Play a game and save your initials to get on the board.";
   }
 
   // After saving a score, the Top 10 shows for 15 seconds, then the app goes back to the start
@@ -1288,11 +1348,11 @@
       if (left <= 0) quitToStart();
       else tick();
     }, 1000);
-    renderBoard();
+    setBoardPeriod("week");
     showScreen("board");
   }
 
-  $("boardBtn").onclick = () => { stopBoardTimer(); renderBoard(); showScreen("board"); };
+  $("boardBtn").onclick = () => { stopBoardTimer(); setBoardPeriod("week"); showScreen("board"); };
   $("quitBoardBtn").onclick = quitToStart;
   $("boardPlayBtn").onclick = quitToStart;
 
@@ -1323,6 +1383,14 @@
         sharedToday = snap.docs.map(d => d.data());
         renderChampion();
       }, () => { clearTimeout(timer); sharedFailed(); });
+    // Scores from the start of this week or this month, whichever is earlier
+    if (unsubRecent) unsubRecent();
+    const from = weekStartKey() < monthStartKey() ? weekStartKey() : monthStartKey();
+    unsubRecent = sharedDb.collection("scores").where("day", ">=", from).limit(1000)
+      .onSnapshot(snap => {
+        sharedRecent = snap.docs.map(d => d.data());
+        renderChampion();
+      }, () => {});
     unsubReset = sharedDb.doc("resets/" + day).onSnapshot(snap => {
       const at = snap.exists ? snap.data().at : 0;
       sharedResetAt = Number.isFinite(at) ? at : 0;
@@ -1387,10 +1455,11 @@
       return;
     }
 
-    // Where does this score come on the Top 10?
-    const better = topTen().filter(s => !(s.at === entry.at && s.initials === entry.initials))
-      .filter(s => rankCmp(s, entry) < 0).length;
-    const rankMsg = better < 10 ? ` You're number ${better + 1} on the Top 10!` : "";
+    // Where does this score come this week and of all time?
+    const week = placeOf(entry, "week"), all = placeOf(entry, "all");
+    const rankMsg =
+      week <= 10 && all <= 10 ? ` You're number ${week} this week and number ${all} of all time!` :
+      week <= 10 ? ` You're number ${week} on this week's Top 10!` : "";
     const message = (!before || rankCmp(entry, before) < 0)
       ? `👑 Saved! You're today's champion!${rankMsg}`
       : `Saved! Today's best is ${before.score}. Can you beat it?${rankMsg}`;
