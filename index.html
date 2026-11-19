@@ -193,6 +193,8 @@
   .btn-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
   .btn-row .big-btn { padding: 12px 22px; font-size: 1.3rem; }
   .again { background: var(--purple); }
+  .practice { background: var(--green); }
+  .btn-row .big-btn[hidden] { display: none; }
   .same { background: var(--orange); }
 
   .mute-btn {
@@ -401,6 +403,7 @@
       <div class="save-msg" id="saveMsg" aria-live="polite"></div>
     </form>
     <div class="btn-row">
+      <button class="big-btn practice" id="practiceBtn" type="button" hidden>🎯 Practice my mistakes</button>
       <button class="big-btn same" id="sameBtn">Play again 🔁</button>
       <button class="big-btn again" id="menuBtn">Pick another game 🎯</button>
     </div>
@@ -589,6 +592,7 @@
   let nextTimer = null;
   function quitToStart() {
     clearTimeout(nextTimer);
+    practiceMode = false;
     stopBoardTimer();
     clearInterval(timerInterval);
     timerInterval = null;
@@ -611,7 +615,9 @@
       $("confirmText").textContent = "You haven't saved your score with your initials yet.";
       $("keepGoingBtn").textContent = "No, stay here";
     } else {
-      $("confirmText").textContent = "Your game will stop and this score won't be saved.";
+      $("confirmText").textContent = practiceMode
+        ? "Your practice will stop."
+        : "Your game will stop and this score won't be saved.";
       $("keepGoingBtn").textContent = "No, keep playing";
     }
     $("confirmTitle").textContent = "Are you sure you want to quit?";
@@ -760,10 +766,74 @@
     nextTimer = setTimeout(next, q.answer >= 10000 ? 3000 : 2000);
   }
 
+  // ---------- Practice my mistakes ----------
+  // Asks again only the questions that were wrong. A wrong answer goes to the back of the
+  // queue, so the round ends when every one has been answered correctly.
+  // No timer, no 6 second limit and nothing is saved to the leaderboard.
+  let practiceMode = false;
+  let practiceCount = 0;       // how many different questions are being practised
+  let practiceTries = 0;       // answers given in this practice round
+  function startPractice() {
+    const seen = new Set();
+    const list = mistakes.filter(m => {
+      const key = m.a + "x" + m.b;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).map(m => ({ a: m.a, b: m.b, answer: m.answer }));
+    if (!list.length) return;
+    clearTimeout(nextTimer);
+    practiceMode = true;
+    practiceCount = list.length;
+    practiceTries = 0;
+    questions = shuffle(list);
+    current = 0;
+    score = 0;
+    gameQuick = false;
+    clearInterval(timerInterval);
+    timerInterval = null;
+    $("timer").textContent = "🎯 Practice";
+    $("tableLabel").textContent = "Practice my mistakes";
+    showScreen("quiz");
+    showQuestion();
+  }
+  function showPracticeDone() {
+    practiceMode = false;
+    $("progress").style.width = "100%";
+    $("resultTitle").textContent = "All fixed! 🎉";
+    $("stars").textContent = "⭐⭐⭐";
+    $("scoreBig").textContent = `${practiceCount} / ${practiceCount}`;
+    $("timeBig").textContent = practiceTries === practiceCount
+      ? "🎯 Right first time, every one!"
+      : `🎯 Every one right in the end (${practiceTries} tries)`;
+    $("scoreMsg").textContent = practiceCount === 1
+      ? "You've got that one now. Brilliant practice!"
+      : "You've got all of those now. Brilliant practice!";
+    $("review").innerHTML = "";
+    $("initialsBox").hidden = true;
+    $("practiceBtn").hidden = true;
+    showScreen("results");
+    confetti();
+  }
+  $("practiceBtn").onclick = () => {
+    // A score that hasn't been saved yet would be lost, so check first
+    const unsaved = !$("initialsBox").hidden && !$("initials").disabled;
+    if (!unsaved) { startPractice(); return; }
+    $("confirmTitle").textContent = "Practice without saving?";
+    $("confirmText").textContent = "You haven't saved your score with your initials yet.";
+    $("keepGoingBtn").textContent = "No, save it first";
+    $("yesQuitBtn").textContent = "Yes, practice";
+    onConfirmYes = startPractice;
+    confirmOpen = true;
+    $("confirmQuit").hidden = false;
+    $("keepGoingBtn").focus();
+  };
+
   // ---------- Quiz ----------
   function startQuiz() {
     if (chosenTable === null || chosenMode === null) return;
     clearTimeout(nextTimer);
+    practiceMode = false;
     const count = QUESTION_COUNT[chosenMode];
     questions = chosenTable === "mix"
       ? makeMixed(count)
@@ -781,7 +851,9 @@
   function showQuestion() {
     const q = questions[current];
     locked = false;
-    $("counter").textContent = `${current + 1} / ${questions.length}`;
+    $("counter").textContent = practiceMode
+      ? `${questions.length - current} left`
+      : `${current + 1} / ${questions.length}`;
     $("progress").style.width = (current / questions.length * 100) + "%";
     const qEl = $("question");
     qEl.innerHTML =
@@ -878,6 +950,7 @@
     if (current === questions.length - 1) stopTimer();   // last question answered
     const q = questions[current];
     const given = Number(raw);
+    if (practiceMode) practiceTries++;
     if (given === q.answer) {
       score++;
       playCorrect();
@@ -886,7 +959,8 @@
       $("feedback").className = "feedback good";
       nextTimer = setTimeout(next, 900);
     } else {
-      mistakes.push({ ...q, given });
+      if (practiceMode) questions.push({ a: q.a, b: q.b, answer: q.answer });   // ask it again later
+      else mistakes.push({ ...q, given });
       playWrong();
       input.classList.add("wrong");
       $("feedback").textContent = `Oops! ${fmt(q.a)} × ${fmt(q.b)} = ${fmt(q.answer)} 💪`;
@@ -898,6 +972,7 @@
   function next() {
     current++;
     if (current < questions.length) showQuestion();
+    else if (practiceMode) showPracticeDone();
     else showResults();
   }
 
@@ -963,6 +1038,8 @@
         review.appendChild(li);
       });
     }
+    // Offer to practise the ones that were wrong
+    $("practiceBtn").hidden = mistakes.length === 0;
     // Ask for initials when at least one answer was right
     $("initialsBox").hidden = score < 1;
     $("initials").value = "";
