@@ -1,4 +1,4 @@
-# Putting Times Tables Fun V2 on a public website
+# Putting Times Tables Fun on a public website
 
 This is the `public` branch. It turns the game into a normal website where **anyone with the
 link** can play, save their name and see **one shared Top 10 leaderboard**, with no sign-in.
