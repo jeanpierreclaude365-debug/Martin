@@ -4,6 +4,31 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Times Tables Fun</title>
+<meta name="description" content="A free, colourful times tables game for children: ×1 to ×12, a mixed challenge, a 6 second mode and a shared Top 10 leaderboard.">
+<meta name="theme-color" content="#8338ec">
+<!-- Browser-tab and home-screen icons -->
+<link rel="icon" href="images/icon.svg" type="image/svg+xml">
+<link rel="icon" href="images/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+<!-- "Add to Home Screen" app settings -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Times Tables">
+<!-- Link preview on WhatsApp, iMessage, Facebook and others -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Times Tables Fun">
+<meta property="og:title" content="Times Tables Fun 🌈">
+<meta property="og:description" content="A free, colourful times tables game for children: ×1 to ×12, a mixed challenge, a 6 second mode and a shared Top 10 leaderboard.">
+<meta property="og:url" content="https://jeanpierreclaude365-debug.github.io/Martin/">
+<meta property="og:image" content="https://jeanpierreclaude365-debug.github.io/Martin/images/preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Times Tables Fun: a colourful times tables game with a Top 10 leaderboard">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Times Tables Fun 🌈">
+<meta name="twitter:description" content="A free, colourful times tables game for children: ×1 to ×12, a mixed challenge, a 6 second mode and a shared Top 10 leaderboard.">
+<meta name="twitter:image" content="https://jeanpierreclaude365-debug.github.io/Martin/images/preview.png">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -254,6 +279,25 @@
   }
   .board-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.2); }
   .board-btn:focus-visible { outline: 4px solid var(--blue); outline-offset: 3px; }
+  .top-btns { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 0 0 12px; }
+  .top-btns .board-btn { margin: 0; }
+  .board-btn.share-btn { background: #d9f7ff; }
+
+  /* Share box */
+  .share-card { max-width: 380px; border-color: var(--blue); }
+  .share-qr { display: block; width: 210px; max-width: 70%; height: auto; margin: 6px auto 10px;
+    border: 6px solid var(--purple); border-radius: 18px; background: #fff; }
+  .share-link { width: 100%; font-family: inherit; font-size: .95rem; font-weight: 700; text-align: center;
+    padding: 6px 8px; border: 3px solid var(--purple); border-radius: 12px; color: var(--ink); background: #f4efff; }
+  .share-btns { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 12px; }
+  .share-btns .big-btn { margin-top: 0; padding: 8px 18px; font-size: 1.1rem; }
+  .share-btns .big-btn[hidden] { display: none; }
+  .share-tip { font-size: .95rem; margin: 12px 0 0; }
+  .share-tip a { color: var(--purple); font-weight: 800; }
+  .share-msg { min-height: 1.3em; font-weight: 800; color: var(--green); margin-top: 6px; }
+
+  /* Privacy note */
+  .privacy { margin: 14px auto 0; max-width: 460px; font-size: .95rem; line-height: 1.35; color: #5a5c72; }
   .board { list-style: none; margin: 12px auto 0; padding: 0; max-width: 460px; display: grid; gap: 8px; }
   .board li {
     display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 10px;
@@ -365,7 +409,10 @@
       </div>
       <button class="champ-reset" id="champReset" type="button" aria-label="Reset today's champion" title="Reset today's champion" hidden>✖</button>
     </div>
-    <button class="board-btn" id="boardBtn" type="button">🏅 Top 10 Leaderboard</button>
+    <div class="top-btns">
+      <button class="board-btn" id="boardBtn" type="button">🏅 Top 10 Leaderboard</button>
+      <button class="board-btn share-btn" id="shareBtn" type="button">📱 Share</button>
+    </div>
 
     <p class="sub">Which times table would you most like to practice?</p>
     <div class="tables" id="tables"></div>
@@ -389,6 +436,7 @@
 
     <button class="big-btn" id="startBtn" disabled>Let's Go! 🚀</button>
     <div class="hint" id="hint">Choose a times table!</div>
+    <p class="privacy">🔒 We only save the letters you type and your score. No accounts, no emails, no adverts and no tracking.</p>
   </section>
 
   <!-- QUIZ SCREEN -->
@@ -457,6 +505,24 @@
   <span class="used-count" id="usedCount">…</span>
 </div>
 
+<div class="confirm" id="shareBox" role="dialog" aria-modal="true" aria-labelledby="shareTitle" hidden>
+  <div class="confirm-card share-card">
+    <h2 id="shareTitle">📱 Share the game</h2>
+    <p>Scan the code with a phone camera, or send the link.</p>
+    <img class="share-qr" src="images/qr-code.svg" width="210" height="210" alt="QR code that opens Times Tables Fun">
+    <input class="share-link" id="shareLink" type="text" readonly value="https://jeanpierreclaude365-debug.github.io/Martin/" aria-label="Link to the game">
+    <div class="share-msg" id="shareMsg" aria-live="polite"></div>
+    <div class="share-btns">
+      <button class="big-btn" id="copyLinkBtn" type="button">📋 Copy link</button>
+      <button class="big-btn" id="nativeShareBtn" type="button" hidden>📤 Share…</button>
+      <button class="big-btn" id="installBtn" type="button" hidden style="background: var(--purple)">⬇️ Add to Home Screen</button>
+      <button class="big-btn keep-going" id="closeShareBtn" type="button">Close</button>
+    </div>
+    <p class="share-tip">On an iPhone or iPad: tap the Share icon in Safari, then <strong>Add to Home Screen</strong>.<br>
+      <a href="images/poster.png" target="_blank" rel="noopener">🖨️ Printable poster with the QR code</a></p>
+  </div>
+</div>
+
 <div class="confirm" id="confirmQuit" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" hidden>
   <div class="confirm-card">
     <div class="confirm-face" aria-hidden="true">🤔</div>
@@ -498,6 +564,12 @@
   let locked = false;
 
   const $ = id => document.getElementById(id);
+
+  // Letters that can't be used as a name on the leaderboard (keeps it friendly for children).
+  // The same list is in firestore.rules, so the database refuses them too.
+  const BLOCKED_INITIALS = new Set(["ASS", "BJ", "CNT", "COC", "COK", "CUM", "DIK", "FAG", "FCK", "FFS",
+    "FU", "FUC", "FUK", "FUQ", "FUX", "HOE", "JIZ", "KKK", "KNB", "KYS", "NAZ", "NGA", "NGR", "NIG", "NOB",
+    "PIS", "SEX", "SHT", "SLT", "TIT", "TWT", "VAG", "WNK", "WTF", "XXX"]);
   const fmt = n => typeof n === "number" ? n.toLocaleString("en-GB") : String(n);
   const describe = t => t === "mix" ? "Mixed challenge" : `${fmt(t)} times table`;
 
@@ -1045,6 +1117,7 @@
 
   function isValidEntry(s) {
     if (!s || typeof s.initials !== "string" || !/^[A-Z]{1,3}$/.test(s.initials)) return false;
+    if (BLOCKED_INITIALS.has(s.initials)) return false;
     if (!Number.isInteger(s.score) || s.score < 1 || ![5, 10, 20].includes(s.total) || s.score > s.total) return false;
     if (typeof s.day !== "string") return false;
     if (s.quick !== undefined && typeof s.quick !== "boolean") return false;
@@ -1284,6 +1357,11 @@
       $("initials").focus();
       return;
     }
+    if (BLOCKED_INITIALS.has(initials)) {
+      $("saveMsg").textContent = "Please choose different letters 🙂";
+      $("initials").select();
+      return;
+    }
     const entry = { initials, score, total: questions.length, table: chosenTable,
                     mode: chosenMode, quick: gameQuick, ms: elapsedMs, day: todayKey(), at: Date.now() };
     const before = currentBest();
@@ -1390,6 +1468,46 @@
     ref.set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(() => {});
   }
   startUsedCounter();
+
+  // ---------- Share box ----------
+  let installPrompt = null;
+  function openShare() {
+    $("shareMsg").textContent = "";
+    $("nativeShareBtn").hidden = !navigator.share;
+    $("installBtn").hidden = !installPrompt;
+    $("shareBox").hidden = false;
+    $("copyLinkBtn").focus();
+  }
+  function closeShare() { $("shareBox").hidden = true; $("shareBtn").focus(); }
+  $("shareBtn").onclick = openShare;
+  $("closeShareBtn").onclick = closeShare;
+  $("shareBox").addEventListener("click", e => { if (e.target === $("shareBox")) closeShare(); });
+  document.addEventListener("keydown", e => { if (!$("shareBox").hidden && e.key === "Escape") closeShare(); });
+  $("copyLinkBtn").onclick = async () => {
+    const link = $("shareLink").value;
+    try { await navigator.clipboard.writeText(link); $("shareMsg").textContent = "Link copied! ✔"; }
+    catch (e) { $("shareLink").select(); $("shareMsg").textContent = "Press Ctrl+C (or ⌘+C) to copy."; }
+  };
+  $("nativeShareBtn").onclick = async () => {
+    try {
+      await navigator.share({ title: "Times Tables Fun", text: "Try this times tables game! 🌈", url: $("shareLink").value });
+    } catch (e) { /* the person closed the share sheet */ }
+  };
+
+  // "Add to Home Screen" (Chrome, Edge and Android offer this button; iPhone uses Safari's Share menu)
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installPrompt = e; });
+  $("installBtn").onclick = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    try { await installPrompt.userChoice; } catch (e) {}
+    installPrompt = null;
+    $("installBtn").hidden = true;
+  };
+
+  // Works offline once opened: a small helper file (sw.js) keeps a copy of the game
+  if ("serviceWorker" in navigator && location.protocol === "https:") {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
 
   function confetti() {
     for (let i = 0; i < 80; i++) {

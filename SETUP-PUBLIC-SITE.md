@@ -55,6 +55,21 @@ Share that link. Everyone who opens it shares the same leaderboard.
 
 ---
 
+## Sharing the game
+
+- **📱 Share button** on the home screen: shows a QR code, a **Copy link** button and, on phones,
+  the normal share menu.
+- **QR code** to print or put in a newsletter: [`images/qr-code.png`](images/qr-code.png)
+  (or [`images/qr-code.svg`](images/qr-code.svg) for sharp printing at any size).
+- **Poster** with the QR code, ready to print on A4: [`images/poster.png`](images/poster.png).
+- **Link preview**: when the link is sent on WhatsApp, iMessage, Facebook and similar, they show
+  [`images/preview.png`](images/preview.png) with the title and a short description.
+- **Add to Home Screen**: on Android, Chrome and Edge, the Share box shows an
+  **Add to Home Screen** button. On an iPhone or iPad, open the game in Safari, tap the Share icon,
+  then **Add to Home Screen**. It then opens full-screen like an app, and works offline once opened.
+
+If the website address ever changes, the QR code, poster and link preview need making again.
+
 ## Looking after the leaderboard
 
 - **Remove a score** (for example, rude initials or a test score): in Firebase, open
