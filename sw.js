@@ -3,7 +3,7 @@
 // The game's own files are always fetched fresh when online, so updates show straight away.
 // Leaderboard traffic (Firebase) is never stored here.
 
-const CACHE = "ttf-v4";
+const CACHE = "ttf-v5";
 const CORE = [
   "./",
   "./index.html",

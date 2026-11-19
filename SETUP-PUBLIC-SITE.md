@@ -39,7 +39,7 @@ on GitHub yourself (pencil icon ✏️) and fill in the six values, then **Commi
 
 These values are **not secret**. Every Firebase website shows them to its visitors. The
 security rules from Part 1 control what people can do: read the leaderboard, add a valid
-score, reset today's champion and count a visit. Nothing else.
+score and count a visit. Nothing else.
 
 ## Part 3: Turn on the website (GitHub Pages)
 
