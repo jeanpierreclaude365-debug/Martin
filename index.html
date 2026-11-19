@@ -145,6 +145,16 @@
   .quick-btn.on small { color: #fff; }
   .quick-btn.on .state { background: var(--yellow); color: var(--ink); }
   .quick-btn:focus-visible { outline: 4px solid var(--blue); outline-offset: 3px; }
+  .quick-btn.speak-btn { color: #138a7f; background: #e6fff7; border-color: var(--green); }
+  .quick-btn.speak-btn.on { color: #fff; background: linear-gradient(135deg, var(--green), var(--blue)); border-color: var(--ink); }
+  .quick-btn[hidden] { display: none; }
+  .say-again {
+    font-family: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer;
+    margin: -4px 0 10px; padding: 4px 14px; border-radius: 999px;
+    border: 3px solid var(--green); background: #e6fff7; color: #138a7f;
+  }
+  .say-again[hidden] { display: none; }
+  .say-again:focus-visible { outline: 4px solid var(--blue); outline-offset: 2px; }
 
   /* 6 second countdown bar on each question */
   .qclock {
@@ -474,6 +484,7 @@
       <button class="mode-btn hard" data-mode="hard">🔥 Hard<small>20 questions</small></button>
     </div>
     <button class="quick-btn" id="quickBtn" type="button" aria-pressed="false">⏰ 6 second challenge <span class="state" id="quickState">OFF</span><small>Only 6 seconds to answer each question!</small></button>
+    <button class="quick-btn speak-btn" id="speakBtn" type="button" aria-pressed="false" hidden>🗣️ Read questions aloud <span class="state" id="speakState">OFF</span><small>Great for younger children</small></button>
 
     <button class="big-btn" id="startBtn" disabled>Let's Go! 🚀</button>
     <div class="hint" id="hint">Choose a times table!</div>
@@ -492,6 +503,7 @@
     <div class="qclock" id="qclock" hidden><div class="qclock-fill" id="qclockFill"></div><span class="qclock-text" id="qclockText">⏰ 6</span></div>
 
     <div class="question" id="question"></div>
+    <button class="say-again" id="sayAgainBtn" type="button" hidden>🔊 Hear it again</button>
     <input class="answer" id="answer" type="text" inputmode="numeric" autocomplete="off"
            maxlength="22" aria-label="Your answer" placeholder="?">
     <div class="feedback" id="feedback"></div>
@@ -771,6 +783,52 @@
   }
   $("quickBtn").onclick = () => setQuick(!quickMode);
 
+  // ---------- Read the questions aloud (uses the device's own voice) ----------
+  const canSpeak = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+  let readAloud = false;
+  try { readAloud = canSpeak && localStorage.getItem("ttf-speak") === "1"; } catch (e) {}
+  function pickVoice() {
+    const voices = speechSynthesis.getVoices();
+    return voices.find(v => /^en[-_]GB/i.test(v.lang)) || voices.find(v => /^en/i.test(v.lang)) || null;
+  }
+  // Speak some text (emoji are left out). Nothing is said when sound is muted.
+  function say(text) {
+    if (!canSpeak || !readAloud || muted) return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text.replace(/[^\p{L}\p{N}\s!?.,']/gu, "").trim());
+      const v = pickVoice();
+      if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "en-GB";
+      u.rate = 0.9;
+      u.pitch = 1.1;
+      speechSynthesis.speak(u);
+    } catch (e) { /* the device can't speak; the game carries on */ }
+  }
+  function stopSpeaking() { try { if (canSpeak) speechSynthesis.cancel(); } catch (e) {} }
+  function sayQuestion() {
+    const q = questions[current];
+    if (q) say(`${fmt(q.a)} times ${fmt(q.b)}`);
+  }
+  function setReadAloud(on) {
+    readAloud = canSpeak && on;
+    try { localStorage.setItem("ttf-speak", readAloud ? "1" : "0"); } catch (e) {}
+    $("speakBtn").classList.toggle("on", readAloud);
+    $("speakBtn").setAttribute("aria-pressed", readAloud ? "true" : "false");
+    $("speakState").textContent = readAloud ? "ON" : "OFF";
+  }
+  $("speakBtn").hidden = !canSpeak;
+  setReadAloud(readAloud);
+  if (canSpeak) speechSynthesis.getVoices();   // some browsers load their voices in the background
+  $("speakBtn").onclick = () => {
+    setReadAloud(!readAloud);
+    if (readAloud) {
+      if (muted) {
+        $("hint").textContent = "Read aloud is on, but the sound is off. Tap 🔇 at the top to turn it on.";
+      } else say("Read aloud is on!");
+    } else stopSpeaking();
+  };
+  $("sayAgainBtn").onclick = () => { sayQuestion(); $("answer").focus(); };
+
   $("startBtn").onclick = startQuiz;
   $("sameBtn").onclick = startQuiz;
   // Quit: stop the current game and go back to the landing screen
@@ -782,6 +840,7 @@
     timerInterval = null;
     locked = true;
     stopQuestionClock();
+    stopSpeaking();
     setMode("easy");
     setQuick(false);
     showScreen("start");
@@ -945,6 +1004,7 @@
     playWrong();
     $("answer").classList.add("wrong");
     $("feedback").textContent = `⏰ Time's up! ${fmt(q.a)} × ${fmt(q.b)} = ${fmt(q.answer)}`;
+    say(`Time's up. ${fmt(q.a)} times ${fmt(q.b)} is ${fmt(q.answer)}.`);
     $("feedback").className = "feedback bad";
     nextTimer = setTimeout(next, q.answer >= 10000 ? 3000 : 2000);
   }
@@ -984,6 +1044,8 @@
     $("feedback").className = "feedback";
     $("answer").focus();
     startQuestionClock();
+    $("sayAgainBtn").hidden = !readAloud;
+    sayQuestion();
   }
 
   // The answer box shows commas for big numbers (1,000,000) but only digits are checked
@@ -1047,6 +1109,7 @@
     muted = !muted;
     try { localStorage.setItem("ttf-muted", muted ? "1" : "0"); } catch (e) {}
     updateMuteButton();
+    if (muted) stopSpeaking();
     if (!muted) playNotes([[783.99, 0, 0.25]], "triangle", 0.2);
     if ($("quiz").classList.contains("active")) $("answer").focus();
   };
@@ -1072,6 +1135,7 @@
       playCorrect();
       input.classList.add("right");
       $("feedback").textContent = PRAISE[Math.floor(Math.random() * PRAISE.length)];
+      say($("feedback").textContent);
       $("feedback").className = "feedback good";
       nextTimer = setTimeout(next, 900);
     } else {
@@ -1079,6 +1143,7 @@
       playWrong();
       input.classList.add("wrong");
       $("feedback").textContent = `Oops! ${fmt(q.a)} × ${fmt(q.b)} = ${fmt(q.answer)} 💪`;
+      say(`Not quite. ${fmt(q.a)} times ${fmt(q.b)} is ${fmt(q.answer)}.`);
       $("feedback").className = "feedback bad";
       nextTimer = setTimeout(next, q.answer >= 10000 ? 3000 : 2000);
     }
@@ -1161,6 +1226,7 @@
     $("saveMsg").textContent = "";
 
     showScreen("results");
+    say(`You got ${score} out of ${total}! ${$("resultTitle").textContent}`);
     if (score >= 1) $("initials").focus();
     if (pct >= 0.7) confetti();
   }
