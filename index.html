@@ -1395,7 +1395,10 @@
   function ranked(period, scope) {
     const seen = new Set();
     const inGroup = scope === "group" && groupCode;
-    return sharedTop.concat(sharedRecent, sharedToday, sharedGroup, localScores)
+    // Scores kept on this device are only shown when the shared leaderboard can't be reached,
+    // so everyone online sees exactly the same Top 10 (and deleted scores don't linger here)
+    const deviceCopies = sharedDb ? [] : localScores;
+    return sharedTop.concat(sharedRecent, sharedToday, sharedGroup, deviceCopies)
       .filter(isValidEntry)
       .filter(s => inPeriod(s, period))
       .filter(s => !inGroup || s.group === groupCode)
