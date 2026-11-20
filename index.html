@@ -327,6 +327,16 @@
   .share-tip a { color: var(--purple); font-weight: 800; }
   .share-msg { min-height: 1.3em; font-weight: 800; color: var(--green); margin-top: 6px; }
 
+  /* Printables and support links */
+  .extra-links { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 16px; }
+  .extra-link {
+    font-weight: 800; font-size: 1.05rem; text-decoration: none; color: var(--purple);
+    background: #f4efff; border: 3px solid var(--purple); border-radius: 999px; padding: 4px 16px;
+  }
+  .extra-link.support-link { color: #fff; background: var(--red); border-color: var(--red); }
+  .extra-link[hidden] { display: none; }
+  .extra-link:focus-visible { outline: 4px solid var(--blue); outline-offset: 3px; }
+
   /* Privacy note */
   .privacy { margin: 14px auto 0; max-width: 460px; font-size: .95rem; line-height: 1.35; color: #5a5c72; }
   .board { list-style: none; margin: 12px auto 0; padding: 0; max-width: 460px; display: grid; gap: 8px; }
@@ -460,6 +470,10 @@
 
     <button class="big-btn" id="startBtn" disabled>Let's Go! 🚀</button>
     <div class="hint" id="hint">Choose a times table!</div>
+    <div class="extra-links">
+      <a class="extra-link" href="printables/">🖨️ Free printable worksheets &amp; certificates</a>
+      <a class="extra-link support-link" id="supportHome" href="#" target="_blank" rel="noopener" hidden>❤️ Support this game</a>
+    </div>
     <p class="privacy">🔒 We only save the letters you type and your score. No accounts, no emails, no adverts and no tracking.</p>
   </section>
 
@@ -605,6 +619,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="site-config.js"></script>
 
 <script>
   // ---------- Settings ----------
@@ -1766,6 +1781,12 @@
     ref.set({ count: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(() => {});
   }
   startUsedCounter();
+
+  // ---------- Support button (shown once a link is set in site-config.js) ----------
+  (() => {
+    const url = window.SITE_CONFIG && window.SITE_CONFIG.supportUrl;
+    if (url && /^https:\/\//.test(url)) { $("supportHome").href = url; $("supportHome").hidden = false; }
+  })();
 
   // ---------- Share box ----------
   let installPrompt = null;
